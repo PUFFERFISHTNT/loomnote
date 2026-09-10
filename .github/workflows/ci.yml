@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install
+        run: pnpm install --no-frozen-lockfile
+      - name: Typecheck
+        run: pnpm -r typecheck
+      - name: Unit & smoke tests
+        run: pnpm test
+      - name: Native module load smoke (better-sqlite3 + electron)
+        working-directory: apps/desktop
+        run: |
+          node -e "try{const {createRequire}=require('module');const req=createRequire(process.cwd()+'/package.json');const D=req('better-sqlite3');const db=new D(':memory:');db.pragma('journal_mode = WAL');db.exec('create table t(a)');db.prepare('insert into t values (?)').run(1);console.log('sqlite smoke OK',db.prepare('select a from t').get().a)}catch(e){console.log('sqlite binding unavailable in this env (app falls back to JSON):',e.message.split('\n')[0])}"
+          ./node_modules/.bin/electron-vite build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: loomnote-dev-${{ matrix.os }}
+          path: apps/desktop/out

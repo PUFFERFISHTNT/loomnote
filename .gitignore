@@ -1,0 +1,12 @@
+node_modules/
+dist/
+out/
+.DS_Store
+*.log
+data/
+!apps/desktop/data/
+apps/desktop/data/*
+!apps/desktop/data/demo-note.md
+release/
+.vite/
+config/local.env
