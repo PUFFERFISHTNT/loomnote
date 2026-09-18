@@ -24,7 +24,7 @@ export function Dashboard() {
         <h1>{greet}，欢迎回来</h1>
         <p>
           {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
-          {settings?.model ? ` · 模型 ${settings.model}` : ''}
+          {settings?.providers?.length ? ` · 接口 ${settings.providers.find((p) => p.id === settings.activeProviderId)?.name ?? '—'}` : ''}
         </p>
       </div>
 

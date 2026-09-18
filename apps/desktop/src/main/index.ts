@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { MemoryEngine, InMemoryStore, NGramEmbedder } from '@loomnote/memory'
 import { parseFrontMatter } from '@loomnote/core'
-import { DEFAULT_SETTINGS, type Settings } from '../shared/ipc.js'
+import { DEFAULT_SETTINGS, getActiveProvider, migrateSettings, type Settings } from '../shared/ipc.js'
 import { installSecurityHandlers } from './security.js'
 import { openDatabase, newId, type AppDb } from './db.js'
 import { registerIpc } from './ipc.js'
@@ -47,7 +47,7 @@ function createWindow(route?: string): BrowserWindow {
     win.webContents.once('did-finish-load', () => {
       console.log(
         `[smoke] renderer loaded; platform=${process.platform}; health=${JSON.stringify(db?.health() ?? {})}; ` +
-          `model=${settingsStore.model}; apiKeySet=${settingsStore.apiKey.length > 0}; web=${settingsStore.webEnabled}`
+          `model=${getActiveProvider(settingsStore).model}; apiKeySet=${getActiveProvider(settingsStore).apiKey.length > 0}; web=${settingsStore.webEnabled}`
       )
       setTimeout(() => app.exit(0), 300)
     })
@@ -135,15 +135,17 @@ if (!gotLock) {
     const saved = db.getSetting('settings')
     if (saved) {
       try {
-        Object.assign(settingsStore, JSON.parse(saved) as Partial<Settings>)
+        Object.assign(settingsStore, migrateSettings(JSON.parse(saved)))
       } catch {
-        /* keep defaults */
+        Object.assign(settingsStore, migrateSettings(undefined))
       }
     }
-    // 环境变量覆盖（一键启动脚本注入，优先级最高；对 SQLite/JSON 两种后端都生效）
-    if (process.env.LOOMNOTE_API_KEY) settingsStore.apiKey = process.env.LOOMNOTE_API_KEY
-    if (process.env.LOOMNOTE_BASE_URL) settingsStore.baseURL = process.env.LOOMNOTE_BASE_URL
-    if (process.env.LOOMNOTE_MODEL) settingsStore.model = process.env.LOOMNOTE_MODEL
+    // 环境变量覆盖（一键启动脚本注入，优先级最高；作用于当前激活的接口）
+    const active = getActiveProvider(settingsStore)
+    if (process.env.LOOMNOTE_API_KEY) active.apiKey = process.env.LOOMNOTE_API_KEY
+    if (process.env.LOOMNOTE_BASE_URL) active.baseURL = process.env.LOOMNOTE_BASE_URL
+    if (process.env.LOOMNOTE_MODEL) active.model = process.env.LOOMNOTE_MODEL
+    if (process.env.LOOMNOTE_MAX_TOKENS) active.maxTokens = Number(process.env.LOOMNOTE_MAX_TOKENS) || active.maxTokens
     if (process.env.LOOMNOTE_WEB_ENABLED !== undefined) settingsStore.webEnabled = ['1', 'true'].includes(process.env.LOOMNOTE_WEB_ENABLED.toLowerCase())
     const memory = new MemoryEngine({ store: new InMemoryStore(), embedder: new NGramEmbedder(128) })
     const agentHost = createAgentHost(db, memory, () => settingsStore)

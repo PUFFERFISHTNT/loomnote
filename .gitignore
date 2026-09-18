@@ -10,3 +10,8 @@ apps/desktop/data/*
 release/
 .vite/
 config/local.env
+
+# 课程 proposal 不公开
+/docs/AILT9019-proposal.md
+
+*.tsbuildinfo

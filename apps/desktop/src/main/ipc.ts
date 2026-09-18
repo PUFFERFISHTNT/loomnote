@@ -70,7 +70,7 @@ export function registerIpc(ctx: IpcContext): void {
 
   ipcMain.handle(IPC.setSettings, (_e, s: Settings) => {
     if (!isSettings(s)) throw new Error('bad settings')
-    const next = { ...DEFAULT_SETTINGS, ...s }
+    const next: Settings = { providers: s.providers, activeProviderId: s.activeProviderId, webEnabled: s.webEnabled }
     setSettings(next)
     return next
   })

@@ -2,7 +2,7 @@ import { builtinCalcTool, builtinWebFetchTool, OpenAICompatProvider, runTask, To
 import type { MemoryEngine } from '@loomnote/memory'
 import type { AgentEvent } from '@loomnote/core'
 import type { AppDb } from './db.js'
-import type { Settings } from '../shared/ipc.js'
+import { getActiveProvider, type Settings } from '../shared/ipc.js'
 
 export interface AgentHost {
   run(task: string, onEvent: (e: AgentEvent) => void): Promise<{ output: string; steps: number; toolCalls: number }>
@@ -18,8 +18,9 @@ export function createAgentHost(db: AppDb, memory: MemoryEngine, getSettings: ()
     },
     async run(task, onEvent) {
       const s = getSettings()
-      if (!s.apiKey) throw new Error('尚未配置 LLM API Key，请到「设置」填写')
-      const provider = new OpenAICompatProvider({ baseURL: s.baseURL, apiKey: s.apiKey, model: s.model, maxTokens: s.maxTokens })
+      const p = getActiveProvider(s)
+      if (!p.apiKey) throw new Error('尚未配置 LLM API Key，请到「设置」填写（当前接口：' + p.name + '）')
+      const provider = new OpenAICompatProvider({ baseURL: p.baseURL, apiKey: p.apiKey, model: p.model, maxTokens: p.maxTokens })
       const registry = new ToolRegistry()
       registry.register(builtinCalcTool)
       if (s.webEnabled) registry.register(builtinWebFetchTool)

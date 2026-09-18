@@ -36,7 +36,7 @@ interface PdfDoc {
   getPage(n: number): Promise<PdfPage>
 }
 interface PdfjsModule {
-  getDocument(src: { data: Uint8Array }): { promise: Promise<PdfDoc>; destroy(): Promise<void> }
+  getDocument(src: { data: Uint8Array; standardFontDataUrl?: string }): { promise: Promise<PdfDoc>; destroy(): Promise<void> }
 }
 
 let pdfjsCache: PdfjsModule | null = null
@@ -54,10 +54,19 @@ async function loadPdfjs(): Promise<PdfjsModule> {
   return mod
 }
 
+let pdfjsDir = ''
+function getStandardFontUrl(): string {
+  if (!pdfjsDir) {
+    const req = createRequire(__filename)
+    pdfjsDir = path.dirname(req.resolve('pdfjs-dist/package.json'))
+  }
+  return pathToFileURL(path.join(pdfjsDir, 'standard_fonts') + path.sep).href
+}
+
 /** pdfjs-dist legacy 文本提取（主进程 Node 环境，纯文本无需 canvas）。 */
 export async function parsePdfData(data: Uint8Array): Promise<string> {
   const { getDocument } = await loadPdfjs()
-  const task = getDocument({ data })
+  const task = getDocument({ data, standardFontDataUrl: getStandardFontUrl() })
   const doc = await task.promise
   const pages: string[] = []
   try {
