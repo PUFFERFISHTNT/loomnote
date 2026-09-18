@@ -1,4 +1,4 @@
-# 织记 LoomNote · 一键开发环境安装（Windows PowerShell）
+﻿# 织记 LoomNote · 一键开发环境安装（Windows PowerShell）
 # 用法：.\scripts\setup.ps1
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")

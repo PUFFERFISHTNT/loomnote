@@ -1,4 +1,4 @@
-# 织记 LoomNote 一键启动（Windows PowerShell）
+﻿# 织记 LoomNote 一键启动（Windows PowerShell）
 # 用法：.\scripts\start.ps1
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
