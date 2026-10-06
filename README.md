@@ -70,6 +70,15 @@ docs/              design blueprint (final/) + working lessons (WORKFLOW_LESSONS
 - [docs/final/07-安全基线.md](docs/final/07-安全基线.md) — security baseline
 - [WORKFLOW_LESSONS.md](WORKFLOW_LESSONS.md) — field-tested pitfalls (maintainers)
 
+## Your material, your responsibility
+
+Everything runs locally: imported files are read and stored on your own machine, nothing is uploaded to us, and nothing is redistributed.
+
+Two rules:
+
+1. Import material you are allowed to use.
+2. If you import anything you are not entitled to, the responsibility is yours, not the tool's.
+
 ## License
 
 UNLICENSED — all rights reserved. This is a private course/product project; licensing to be decided before any public release. See [LICENSE](LICENSE).
