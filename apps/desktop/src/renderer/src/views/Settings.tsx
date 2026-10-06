@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../stores/app.js'
-import { newProviderId, PRESET_PROVIDERS, type ProviderConfig, type Settings } from '../../../shared/ipc.js'
+import { newProviderId, PRESET_PROVIDERS, type ProviderConfig, type Settings as SettingsShape } from '../../../shared/ipc.js'
+import { getLang, providerLabel, t, useLang } from '../i18n.js'
 
-/** 集成与设置：多接口管理（自定义添加）+ 全局开关。 */
+/** 集成与设置：多接口管理（自定义添加）+ 界面语言 + 全局开关。 */
 export function Settings() {
   const settings = useApp((s) => s.settings)
-  const [form, setForm] = useState<Settings | null>(null)
+  const [form, setForm] = useState<SettingsShape | null>(null)
   const [saved, setSaved] = useState(false)
+  const lang = useLang()
 
   useEffect(() => {
     void useApp.getState().loadSettings()
@@ -19,39 +21,58 @@ export function Settings() {
   if (!form) {
     return (
       <div className="view narrow">
-        <h1 className="view-title">设置</h1>
-        <p className="hint">加载中…</p>
+        <h1 className="view-title">{t('settings.title')}</h1>
+        <p className="hint">{t('common.loading')}</p>
       </div>
     )
   }
 
   function patchProvider(id: string, patch: Partial<ProviderConfig>) {
     if (!form) return
-    const cur: Settings = form
+    const cur: SettingsShape = form
     setForm({ ...cur, providers: cur.providers.map((p) => (p.id === id ? { ...p, ...patch } : p)) })
   }
 
   function addProvider() {
     if (!form) return
-    const cur: Settings = form
-    const name = '自定义接口'
+    const cur: SettingsShape = form
+    const name = t('settings.custom')
     const p: ProviderConfig = { id: newProviderId(name), name, baseURL: 'https://api.example.com/v1', apiKey: '', model: 'your-model', maxTokens: 4096 }
     setForm({ ...cur, providers: [...cur.providers, p], activeProviderId: cur.providers.length === 0 ? p.id : cur.activeProviderId })
   }
 
   function removeProvider(id: string) {
     if (!form || form.providers.length <= 1) return
-    const cur: Settings = form
+    const cur: SettingsShape = form
     const providers = cur.providers.filter((p) => p.id !== id)
     setForm({ ...cur, providers, activeProviderId: cur.activeProviderId === id ? providers[0]!.id : cur.activeProviderId })
   }
 
+  /** Preset names follow the interface language until the user renames one. */
+  function shownName(p: ProviderConfig): string {
+    const presetName = PRESET_PROVIDERS.find((x) => x.id === p.id)?.name
+    return presetName && p.name === presetName ? providerLabel(p) : p.name
+  }
+
   return (
     <div className="view" style={{ maxWidth: 860 }}>
-      <h1 className="view-title">设置</h1>
-      <p className="view-sub">模型接口自由接入：内置 DeepSeek 官方 / 火山方舟 / Ollama 预设，也可添加任意 OpenAI 兼容端点。密钥只存本机。</p>
+      <h1 className="view-title">{t('settings.title')}</h1>
+      <p className="view-sub">{t('settings.sub')}</p>
 
-      <div className="section-title">接口列表（点选左侧圆圈设为当前使用）</div>
+      <div className="section-title">{t('settings.language')}</div>
+      <div style={{ marginTop: 12, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button className={lang === 'zh' ? 'btn primary' : 'btn'} onClick={() => void useApp.getState().setLang('zh')}>
+          中文
+        </button>
+        <button className={lang === 'en' ? 'btn primary' : 'btn'} onClick={() => void useApp.getState().setLang('en')}>
+          English
+        </button>
+        <span className="hint">{t('settings.language.hint')}</span>
+      </div>
+
+      <div className="section-title" style={{ marginTop: 24 }}>
+        {t('settings.list')}
+      </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
         {form.providers.map((p) => (
           <div
@@ -74,18 +95,18 @@ export function Settings() {
                   cursor: 'pointer',
                   flexShrink: 0
                 }}
-                title="设为当前接口"
+                title={t('settings.makeActive')}
                 onClick={() => setForm({ ...form, activeProviderId: p.id })}
               />
               <input
                 style={{ fontWeight: 600, fontSize: 14, border: 'none', outline: 'none', background: 'transparent', flex: 1, userSelect: 'text', color: 'var(--text)' }}
-                value={p.name}
+                value={shownName(p)}
                 onChange={(e) => patchProvider(p.id, { name: e.target.value })}
                 spellCheck={false}
               />
-              {p.id === 'deepseek-official' && <span className="chip blue">DeepSeek 官方</span>}
-              {p.id === form.activeProviderId && <span className="chip ok">✓ 当前使用</span>}
-              <button className="btn ghost" style={{ padding: '3px 8px', color: 'var(--err)' }} onClick={() => removeProvider(p.id)} title="删除此接口">
+              {p.id === 'deepseek-official' && <span className="chip blue">{t('preset.deepseek-official')}</span>}
+              {p.id === form.activeProviderId && <span className="chip ok">✓ {t('settings.inUse')}</span>}
+              <button className="btn ghost" style={{ padding: '3px 8px', color: 'var(--err)' }} onClick={() => removeProvider(p.id)} title={t('settings.remove')}>
                 ✕
               </button>
             </div>
@@ -95,7 +116,7 @@ export function Settings() {
                 <input style={inputStyle} value={p.baseURL} onChange={(e) => patchProvider(p.id, { baseURL: e.target.value })} spellCheck={false} />
               </label>
               <label style={{ fontSize: 12, color: 'var(--text2)', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                模型名
+                {t('settings.model')}
                 <input style={inputStyle} value={p.model} onChange={(e) => patchProvider(p.id, { model: e.target.value })} spellCheck={false} />
               </label>
               <label style={{ fontSize: 12, color: 'var(--text2)', display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -103,7 +124,7 @@ export function Settings() {
                 <input style={inputStyle} type="password" value={p.apiKey} onChange={(e) => patchProvider(p.id, { apiKey: e.target.value })} placeholder="sk-..." spellCheck={false} />
               </label>
               <label style={{ fontSize: 12, color: 'var(--text2)', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                最大输出 tokens
+                {t('settings.maxTokens')}
                 <input style={inputStyle} type="number" value={p.maxTokens} onChange={(e) => patchProvider(p.id, { maxTokens: Number(e.target.value) || 4096 })} />
               </label>
             </div>
@@ -113,21 +134,21 @@ export function Settings() {
 
       <div style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <button className="btn" onClick={addProvider}>
-          + 添加自定义接口
+          + {t('settings.addCustom')}
         </button>
-        <span className="hint">或从预设补回：</span>
+        <span className="hint">{t('settings.orPreset')}</span>
         {PRESET_PROVIDERS.filter((pre) => !form.providers.some((p) => p.id === pre.id)).map((pre) => (
           <button key={pre.id} className="btn ghost" onClick={() => setForm({ ...form, providers: [...form.providers, { ...pre, apiKey: '' }] })}>
-            添加 {pre.name}
+            {t('settings.add')} {providerLabel(pre)}
           </button>
         ))}
       </div>
 
-      <div className="section-title">Agent 工具</div>
+      <div className="section-title">{t('settings.agentTools')}</div>
       <div style={{ marginTop: 12 }}>
         <label className="row" style={{ display: 'flex', alignItems: 'center', gap: 9, fontWeight: 500, fontSize: 13.5 }}>
           <input type="checkbox" style={{ width: 16, height: 16 }} checked={form.webEnabled} onChange={(e) => setForm({ ...form, webEnabled: e.target.checked })} />
-          允许联网（web_fetch 抓取网页查证）
+          {t('settings.web')}
         </label>
       </div>
 
@@ -135,19 +156,19 @@ export function Settings() {
         <button
           className="btn primary"
           onClick={async () => {
-            const next = await window.loomnote.setSettings(form)
+            const next = await window.loomnote.setSettings({ ...form, lang: getLang() })
             setForm(next)
             await useApp.getState().loadSettings()
             setSaved(true)
             setTimeout(() => setSaved(false), 2000)
           }}
         >
-          保存设置
+          {t('settings.save')}
         </button>
-        {saved && <span className="chip ok">✓ 已保存</span>}
+        {saved && <span className="chip ok">✓ {t('settings.saved')}</span>}
       </div>
       <p className="hint" style={{ marginTop: 16 }}>
-        提示：DeepSeek 官方 API 使用 <code>deepseek-chat</code>（可改为 deepseek-reasoner）；火山方舟 Coding Plan 需使用 /api/coding/v3 端点（勿用按量计费的 /api/v3）；GLM 5.3 为思考型视觉模型，maxTokens ≥ 512 否则输出为空。
+        {t('settings.hint')}
       </p>
     </div>
   )

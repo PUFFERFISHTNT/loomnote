@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { noteSummaryTime, useApp } from '../stores/app.js'
+import { locale, providerLabel, t, useLang } from '../i18n.js'
 
 export function Dashboard() {
   const h = useApp((s) => s.health)
@@ -9,6 +10,7 @@ export function Dashboard() {
   const events = useApp((s) => s.events)
   const settings = useApp((s) => s.settings)
   const navigate = useNavigate()
+  useLang()
 
   useEffect(() => {
     void useApp.getState().refreshAll()
@@ -16,58 +18,64 @@ export function Dashboard() {
   }, [])
 
   const hour = new Date().getHours()
-  const greet = hour < 5 ? '夜深了' : hour < 12 ? '早上好' : hour < 18 ? '下午好' : '晚上好'
+  const greet = hour < 5 ? t('dash.greet.night') : hour < 12 ? t('dash.greet.morning') : hour < 18 ? t('dash.greet.afternoon') : t('dash.greet.evening')
+  const activeProvider = settings?.providers?.find((p) => p.id === settings.activeProviderId)
 
   return (
     <div className="view">
       <div className="dash-hero">
-        <h1>{greet}，欢迎回来</h1>
+        <h1>
+          {greet}
+          {t('dash.welcome')}
+        </h1>
         <p>
-          {new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
-          {settings?.providers?.length ? ` · 接口 ${settings.providers.find((p) => p.id === settings.activeProviderId)?.name ?? '—'}` : ''}
+          {new Date().toLocaleDateString(locale(), { month: 'long', day: 'numeric', weekday: 'long' })}
+          {activeProvider ? ` · ${t('dash.model')} ${providerLabel(activeProvider)}` : ''}
         </p>
       </div>
 
       <div className="stat-row">
         <div className="stat-card">
           <b>{notes.length}</b>
-          <span>笔记</span>
+          <span>{t('dash.stat.notes')}</span>
         </div>
         <div className="stat-card">
           <b>{imports.length}</b>
-          <span>导入资料</span>
+          <span>{t('dash.stat.imports')}</span>
         </div>
         <div className="stat-card">
           <b>{h ? (h.db === 'sqlite' ? 'SQLite' : 'JSON') : '…'}</b>
-          <span>本地存储 · {h?.ok ? '健康' : '—'}</span>
+          <span>{t('dash.stat.storage', { state: h?.ok ? t('dash.stat.healthy') : '—' })}</span>
         </div>
         <div className="stat-card">
           <b>{events.length}</b>
-          <span>Agent 事件（本次会话）</span>
+          <span>{t('dash.stat.events')}</span>
         </div>
       </div>
 
       <div className="dash-actions">
         <button className="btn primary" onClick={() => navigate('/imports')}>
-          📥 导入资料
+          📥 {t('dash.action.import')}
         </button>
         <button className="btn" onClick={() => navigate('/notes')} disabled={notes.length === 0}>
-          🪄 去整理笔记
+          🪄 {t('dash.action.organise')}
         </button>
       </div>
 
       {notes.length > 0 && (
         <>
-          <div className="section-title">最近笔记</div>
+          <div className="section-title">{t('dash.recent')}</div>
           <div className="recent-list" style={{ marginTop: 10 }}>
             {notes.slice(0, 6).map((n) => (
               <button key={n.id} className="recent-item" onClick={() => navigate('/notes')}>
                 <span className="ico">📄</span>
                 <span className="t">
                   <b>{n.title}</b>
-                  <span>{noteSummaryTime(n)} 更新</span>
+                  <span>
+                    {noteSummaryTime(n)} {t('dash.updated')}
+                  </span>
                 </span>
-                <span className="chip gray">打开 →</span>
+                <span className="chip gray">{t('dash.open')} →</span>
               </button>
             ))}
           </div>
@@ -77,8 +85,8 @@ export function Dashboard() {
       {notes.length === 0 && (
         <div className="empty-state">
           <div className="big">🌱</div>
-          <b>还没有任何笔记</b>
-          <span>把一份讲义 PDF 或 Markdown 拖进「资料箱」，织记的 agent 会把它整理成带公式、演示和自测题的学习笔记。</span>
+          <b>{t('dash.empty.title')}</b>
+          <span>{t('dash.empty.body')}</span>
         </div>
       )}
     </div>

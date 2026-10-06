@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { AgentEvent, Note } from '@loomnote/core'
 import type { HealthInfo, ImportSummary, NoteSummary, Settings } from '../../../shared/ipc.js'
+import { initLang, setLang, t } from '../i18n.js'
 
 interface AppState {
   health: HealthInfo | null
@@ -18,6 +19,7 @@ interface AppState {
   activeNote: Note | null
   refreshAll: () => Promise<void>
   loadSettings: () => Promise<void>
+  setLang: (lang: 'zh' | 'en') => Promise<void>
   pushAgentEvent: (e: AgentEvent) => void
   clearRun: () => void
   setBusy: (b: boolean) => void
@@ -51,9 +53,25 @@ export const useApp = create<AppState>((set, get) => ({
 
   async loadSettings() {
     try {
-      set({ settings: await window.loomnote.getSettings() })
+      const settings = await window.loomnote.getSettings()
+      set({ settings })
+      // 语言：本地偏好优先，其次跟随设置（设置里也存了一份，便于主进程决定笔记语言）
+      initLang(settings.lang === 'zh' ? 'zh' : 'en')
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) })
+    }
+  },
+
+  async setLang(lang) {
+    setLang(lang)
+    const cur = get().settings
+    if (cur) {
+      try {
+        const next = await window.loomnote.setSettings({ ...cur, lang })
+        set({ settings: next })
+      } catch (e) {
+        set({ error: e instanceof Error ? e.message : String(e) })
+      }
     }
   },
 
@@ -93,7 +111,7 @@ export const useApp = create<AppState>((set, get) => ({
 export function noteSummaryTime(n: NoteSummary): string {
   const d = new Date(n.updatedAt)
   const today = new Date()
-  if (d.toDateString() === today.toDateString()) return `今天 ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
+  if (d.toDateString() === today.toDateString()) return `${t('time.today')} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 

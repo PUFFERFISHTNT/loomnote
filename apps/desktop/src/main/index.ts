@@ -25,7 +25,7 @@ function createWindow(route?: string): BrowserWindow {
     height: 900,
     minWidth: 1080,
     minHeight: 700,
-    title: '织记 LoomNote',
+    title: 'LoomNote',
     backgroundColor: '#ffffff',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
@@ -77,7 +77,7 @@ function createWindow(route?: string): BrowserWindow {
           console.error('[shot] failed', e)
         }
         app.exit(0)
-      }, 1200)
+      }, 2400)
     })
   }
   return win
@@ -87,14 +87,15 @@ function createWindow(route?: string): BrowserWindow {
 function seedDemoNoteForScreenshot(): void {
   if (!shotOut || !db) return
   if (db.listNotes().length > 0) return
-  const demoPath = path.join(__dirname, '../../data/demo-note.md')
+  const en = settingsStore.lang === 'en'
+  const demoPath = path.join(__dirname, `../../data/demo-note${en ? '.en' : ''}.md`)
   if (!fs.existsSync(demoPath)) return
   const text = fs.readFileSync(demoPath, 'utf-8')
   const { frontMatter, body } = parseFrontMatter(text)
   const now = Date.now()
   db.saveNote({
     id: newId(),
-    title: (frontMatter.title as string | undefined) ?? '示例 · 0-1 背包问题',
+    title: (frontMatter.title as string | undefined) ?? (en ? 'Demo · 0-1 Knapsack' : '示例 · 0-1 背包问题'),
     bodyMd: body,
     frontMatter,
     status: 'draft',
@@ -147,6 +148,10 @@ if (!gotLock) {
     if (process.env.LOOMNOTE_MODEL) active.model = process.env.LOOMNOTE_MODEL
     if (process.env.LOOMNOTE_MAX_TOKENS) active.maxTokens = Number(process.env.LOOMNOTE_MAX_TOKENS) || active.maxTokens
     if (process.env.LOOMNOTE_WEB_ENABLED !== undefined) settingsStore.webEnabled = ['1', 'true'].includes(process.env.LOOMNOTE_WEB_ENABLED.toLowerCase())
+    // 界面语言：LOOMNOTE_LANG 优先，其次系统语言（中文系统 → 中文，其余 → 英文）
+    const envLang = process.env.LOOMNOTE_LANG === 'zh' || process.env.LOOMNOTE_LANG === 'en' ? (process.env.LOOMNOTE_LANG as 'zh' | 'en') : null
+    if (envLang) settingsStore.lang = envLang
+    else if (settingsStore.lang !== 'zh' && settingsStore.lang !== 'en') settingsStore.lang = app.getLocale().toLowerCase().startsWith('zh') ? 'zh' : 'en'
     const memory = new MemoryEngine({ store: new InMemoryStore(), embedder: new NGramEmbedder(128) })
     const agentHost = createAgentHost(db, memory, () => settingsStore)
 

@@ -21,7 +21,8 @@ describe('ipc 入参校验（07 §5）', () => {
         { id: 'volc-ark-coding', name: '火山方舟 Coding Plan', baseURL: 'https://ark.cn-beijing.volces.com/api/coding/v3', apiKey: '', model: 'deepseek-v4-flash', maxTokens: 4096 }
       ],
       activeProviderId: 'volc-ark-coding',
-      webEnabled: true
+      webEnabled: true,
+      lang: 'zh' as const
     }
     expect(getActiveProvider(s).name).toBe('火山方舟 Coding Plan')
     expect(getActiveProvider({ ...s, activeProviderId: 'missing' }).id).toBe('deepseek-official')
@@ -29,9 +30,11 @@ describe('ipc 入参校验（07 §5）', () => {
 
   it('migrateSettings 把旧单接口设置迁移为多接口', () => {
     const migrated = migrateSettings({ baseURL: 'http://legacy', apiKey: 'KEY', model: 'm1', maxTokens: 2048, webEnabled: false })
-    expect(migrated.providers.length).toBeGreaterThanOrEqual(1)
-    expect(migrated.providers[0]!.baseURL).toBe('http://legacy')
-    expect(migrated.activeProviderId).toBe('volc-ark-coding')
+    expect(migrated.providers.length).toBe(1)
+    expect(migrated.providers[0]!.id).toBe('deepseek-official')
+    expect(migrated.activeProviderId).toBe('deepseek-official')
     expect(migrated.webEnabled).toBe(false)
+    const keptKey = migrateSettings({ baseURL: 'https://api.deepseek.com/v1', apiKey: 'KEY', model: 'deepseek-v4.1-flash' })
+    expect(keptKey.providers[0]!.apiKey).toBe('KEY')
   })
 })

@@ -14,7 +14,8 @@ export const IPC = {
   setSettings: 'settings:set',
   runAgent: 'agent:run',
   agentCancel: 'agent:cancel',
-  agentEvent: 'agent:event'
+  agentEvent: 'agent:event',
+  lang: 'app:lang'
 } as const
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -33,7 +34,11 @@ export interface Settings {
   providers: ProviderConfig[]
   activeProviderId: string
   webEnabled: boolean
+  /** 界面语言；同时决定 AI 生成笔记的书写语言 */
+  lang: Lang
 }
+
+export type Lang = 'zh' | 'en'
 
 export function newProviderId(name: string): string {
   const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'custom'
@@ -44,66 +49,47 @@ export function getActiveProvider(s: Settings): ProviderConfig {
   return s.providers.find((p) => p.id === s.activeProviderId) ?? s.providers[0] ?? PRESET_PROVIDERS[0]!
 }
 
-/** 内置预设：DeepSeek 官方 API 排第一 */
+/** 内置预设：当前只保留 DeepSeek 官方 API（其余接口按需自行添加） */
 export const PRESET_PROVIDERS: ProviderConfig[] = [
   {
     id: 'deepseek-official',
     name: 'DeepSeek 官方 API',
     baseURL: 'https://api.deepseek.com/v1',
     apiKey: '',
-    model: 'deepseek-chat',
-    maxTokens: 8192
-  },
-  {
-    id: 'volc-ark-coding',
-    name: '火山方舟 Coding Plan',
-    baseURL: 'https://ark.cn-beijing.volces.com/api/coding/v3',
-    apiKey: '',
-    model: 'deepseek-v4-flash',
-    maxTokens: 4096
-  },
-  {
-    id: 'volc-ark-glm',
-    name: '火山方舟 · GLM 5.3 Flash（视觉）',
-    baseURL: 'https://ark.cn-beijing.volces.com/api/coding/v3',
-    apiKey: '',
-    model: 'glm-5.3-flash',
-    maxTokens: 8192
-  },
-  {
-    id: 'ollama-local',
-    name: '本地 Ollama',
-    baseURL: 'http://localhost:11434/v1',
-    apiKey: 'ollama',
-    model: 'qwen3:8b',
-    maxTokens: 8192
+    model: 'deepseek-v4.1-flash',
+    maxTokens: 1000000
   }
 ]
 
 export const DEFAULT_SETTINGS: Settings = {
   providers: PRESET_PROVIDERS.map((p) => ({ ...p })),
-  activeProviderId: 'volc-ark-coding',
-  webEnabled: true
+  activeProviderId: 'deepseek-official',
+  webEnabled: true,
+  lang: 'en'
 }
 
 /** 旧版单接口设置迁移为新版多接口结构 */
 export function migrateSettings(raw: unknown): Settings {
   if (isSettings(raw)) return raw
   const o = (raw ?? {}) as Record<string, unknown>
-  const legacy = {
-    baseURL: typeof o.baseURL === 'string' && o.baseURL ? o.baseURL : 'https://ark.cn-beijing.volces.com/api/coding/v3',
-    apiKey: typeof o.apiKey === 'string' ? o.apiKey : '',
-    model: typeof o.model === 'string' && o.model ? o.model : 'deepseek-v4-flash',
-    maxTokens: typeof o.maxTokens === 'number' ? o.maxTokens : 4096,
-    webEnabled: o.webEnabled !== false
+  const baseURL = typeof o.baseURL === 'string' && o.baseURL ? o.baseURL : ''
+  const isDeepSeek = baseURL.toLowerCase().includes('deepseek')
+  const provider: ProviderConfig = {
+    ...PRESET_PROVIDERS[0]!,
+    ...(isDeepSeek
+      ? {
+          baseURL,
+          apiKey: typeof o.apiKey === 'string' ? o.apiKey : '',
+          model: typeof o.model === 'string' && o.model ? o.model : PRESET_PROVIDERS[0]!.model,
+          maxTokens: typeof o.maxTokens === 'number' ? o.maxTokens : PRESET_PROVIDERS[0]!.maxTokens
+        }
+      : {})
   }
   return {
-    providers: [
-      { id: 'volc-ark-coding', name: '火山方舟 Coding Plan', baseURL: legacy.baseURL, apiKey: legacy.apiKey, model: legacy.model, maxTokens: legacy.maxTokens },
-      ...PRESET_PROVIDERS.filter((p) => p.id !== 'volc-ark-coding').map((p) => ({ ...p }))
-    ],
-    activeProviderId: 'volc-ark-coding',
-    webEnabled: legacy.webEnabled
+    providers: [provider],
+    activeProviderId: provider.id,
+    webEnabled: o.webEnabled !== false,
+    lang: o.lang === 'zh' || o.lang === 'en' ? (o.lang as Lang) : 'en'
   }
 }
 
@@ -130,6 +116,8 @@ export interface ImportSummary {
 
 /** preload 暴露给渲染层的 API 契约 */
 export interface LoomnoteApi {
+  /** 启动即读：首帧就按正确语言渲染（同步，无闪烁） */
+  defaultLang: Lang
   health(): Promise<HealthInfo>
   listImports(): Promise<ImportSummary[]>
   pickImport(): Promise<string | null>

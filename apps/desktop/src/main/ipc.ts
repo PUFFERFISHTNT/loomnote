@@ -66,11 +66,16 @@ export function registerIpc(ctx: IpcContext): void {
     return note
   })
 
+  // 同步返回界面语言：渲染层首帧即用正确语言
+  ipcMain.on(IPC.lang, (e) => {
+    e.returnValue = getSettings().lang === 'zh' ? 'zh' : 'en'
+  })
+
   ipcMain.handle(IPC.getSettings, () => getSettings())
 
   ipcMain.handle(IPC.setSettings, (_e, s: Settings) => {
     if (!isSettings(s)) throw new Error('bad settings')
-    const next: Settings = { providers: s.providers, activeProviderId: s.activeProviderId, webEnabled: s.webEnabled }
+    const next: Settings = { providers: s.providers, activeProviderId: s.activeProviderId, webEnabled: s.webEnabled, lang: s.lang === 'zh' ? 'zh' : 'en' }
     setSettings(next)
     return next
   })

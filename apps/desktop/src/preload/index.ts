@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { IPC, type AgentEvent, type LoomnoteApi } from '../shared/ipc.js'
 
 const api: LoomnoteApi = {
+  defaultLang: (ipcRenderer.sendSync(IPC.lang) as 'zh' | 'en') ?? 'en',
   health: () => ipcRenderer.invoke(IPC.health),
   listImports: () => ipcRenderer.invoke(IPC.listImports),
   pickImport: () => ipcRenderer.invoke(IPC.pickImport),

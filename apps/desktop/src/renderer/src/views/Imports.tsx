@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../stores/app.js'
+import { locale, t, useLang } from '../i18n.js'
 
 const KIND_ICON: Record<string, string> = { md: '📝', pdf: '📕', image: '🖼', html: '🌐', url: '🔗', word: '📘', excel: '📊' }
 
@@ -7,6 +8,7 @@ export function Imports() {
   const imports = useApp((s) => s.imports)
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
+  useLang()
 
   async function importFiles(files: FileList | null) {
     if (!files || files.length === 0) return
@@ -40,8 +42,8 @@ export function Imports() {
 
   return (
     <div className="view">
-      <h1 className="view-title">资料箱</h1>
-      <p className="view-sub">拖入或选择文件，解析后自动生成笔记（PDF 提取正文文本；公式与插图随 AI 整理进入笔记）。</p>
+      <h1 className="view-title">{t('inbox.title')}</h1>
+      <p className="view-sub">{t('inbox.sub')}</p>
 
       <div
         className={dragging ? 'dropzone on' : 'dropzone'}
@@ -57,30 +59,30 @@ export function Imports() {
         }}
       >
         <div className="big">{busy ? <span className="spinner" /> : dragging ? '📥' : '🗂'}</div>
-        <b>{busy ? '正在解析导入…' : dragging ? '松手即导入' : '把文件拖到这里'}</b>
-        <span>支持 PDF · Markdown · TXT ｜ 或</span>
+        <b>{busy ? t('inbox.drop.parsing') : dragging ? t('inbox.drop.release') : t('inbox.drop.idle')}</b>
+        <span>{t('inbox.drop.hint')}</span>
         <div style={{ marginTop: 12 }}>
           <button className="btn" onClick={() => void pick()} disabled={busy}>
-            选择文件…
+            {t('inbox.choose')}
           </button>
         </div>
       </div>
 
-      <div className="section-title">导入记录</div>
+      <div className="section-title">{t('inbox.history')}</div>
       {imports.length === 0 ? (
         <div className="empty-state" style={{ paddingTop: 36 }}>
           <div className="big">📭</div>
-          <b>暂无导入记录</b>
-          <span>Word / Excel 解析在后续版本加入；当前 PDF 与 Markdown 已全链路可用。</span>
+          <b>{t('inbox.none')}</b>
+          <span>{t('inbox.none.hint')}</span>
         </div>
       ) : (
         <table className="tbl" style={{ marginTop: 8 }}>
           <thead>
             <tr>
-              <th>文件</th>
-              <th>类型</th>
-              <th>状态</th>
-              <th>时间</th>
+              <th>{t('inbox.col.file')}</th>
+              <th>{t('inbox.col.type')}</th>
+              <th>{t('inbox.col.status')}</th>
+              <th>{t('inbox.col.time')}</th>
             </tr>
           </thead>
           <tbody>
@@ -92,9 +94,9 @@ export function Imports() {
                 </td>
                 <td>{r.kind.toUpperCase()}</td>
                 <td>
-                  <span className={r.status === 'done' ? 'chip ok' : 'chip warn'}>{r.status === 'done' ? '✓ 已完成' : r.status}</span>
+                  <span className={r.status === 'done' ? 'chip ok' : 'chip warn'}>{r.status === 'done' ? t('inbox.status.done') : r.status}</span>
                 </td>
-                <td style={{ color: 'var(--text3)' }}>{new Date(r.createdAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                <td style={{ color: 'var(--text3)' }}>{new Date(r.createdAt).toLocaleString(locale(), { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
               </tr>
             ))}
           </tbody>

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { HashRouter, NavLink, Route, Routes } from 'react-router-dom'
 import { useApp } from './stores/app.js'
+import { t, useLang } from './i18n.js'
 import { Dashboard } from './views/Dashboard.js'
 import { Imports } from './views/Imports.js'
 import { Notes } from './views/Notes.js'
@@ -13,6 +14,7 @@ export function App() {
   const loadSettings = useApp((s) => s.loadSettings)
   const refreshAll = useApp((s) => s.refreshAll)
   const pushAgentEvent = useApp((s) => s.pushAgentEvent)
+  useLang()
 
   useEffect(() => {
     void refreshAll()
@@ -30,8 +32,8 @@ export function App() {
             <Route path="/imports" element={<Imports />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/notes/:id" element={<Notes />} />
-            <Route path="/review" element={<ComingSoon title="复习中心" icon="🔁" desc="抽认卡、FSRS 间隔重复与错题归因将在 M4 上线。AI 整理出的自测题此刻已随笔记生成。" />} />
-            <Route path="/graph" element={<ComingSoon title="知识图谱" icon="🕸" desc="力导向画布、增量合并 Diff 与 MOC 地图将在 M3 上线。双链语法 [[知识点]] 已可在笔记中使用。" />} />
+            <Route path="/review" element={<ComingSoon title={t('comingSoon.review.title')} icon="🔁" desc={t('comingSoon.review.desc')} />} />
+            <Route path="/graph" element={<ComingSoon title={t('comingSoon.graph.title')} icon="🕸" desc={t('comingSoon.graph.desc')} />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
@@ -47,42 +49,43 @@ function Sidebar() {
   const busy = useApp((s) => s.busy)
   const agentOpen = useApp((s) => s.agentOpen)
   const setAgentOpen = useApp((s) => s.setAgentOpen)
+  useLang()
 
   return (
     <aside className="side">
       <div className="side-head">
         <div className="side-logo">🧶</div>
         <div>
-          <b>织记</b>
-          <span>LoomNote</span>
+          <b>{t('app.name')}</b>
+          <span>{t('app.tagline')}</span>
         </div>
       </div>
       <nav>
         <NavLink to="/" end>
-          <span className="ico">🏠</span> 工作台
+          <span className="ico">🏠</span> {t('nav.workbench')}
         </NavLink>
         <NavLink to="/imports">
-          <span className="ico">📥</span> 资料箱
+          <span className="ico">📥</span> {t('nav.inbox')}
         </NavLink>
         <NavLink to="/notes">
-          <span className="ico">📝</span> 笔记工作区
+          <span className="ico">📝</span> {t('nav.notes')}
         </NavLink>
         <NavLink to="/review">
-          <span className="ico">🔁</span> 复习中心
+          <span className="ico">🔁</span> {t('nav.review')}
         </NavLink>
         <NavLink to="/graph">
-          <span className="ico">🕸</span> 知识图谱
+          <span className="ico">🕸</span> {t('nav.graph')}
         </NavLink>
         <NavLink to="/settings">
-          <span className="ico">⚙️</span> 设置
+          <span className="ico">⚙️</span> {t('nav.settings')}
         </NavLink>
       </nav>
       <div className="side-foot">
         <button className="side-agent-btn" onClick={() => setAgentOpen(!agentOpen)}>
-          <span className="ico">⚡</span> Agent 运行时
+          <span className="ico">⚡</span> {t('nav.agent')}
           <span className={busy ? 'pulse-dot on' : 'pulse-dot'} />
         </button>
-        <div className="side-meta">{health ? `${health.db === 'sqlite' ? 'SQLite' : '本地 JSON'} · ${health.noteCount} 篇笔记` : '…'}</div>
+        <div className="side-meta">{health ? `${health.db === 'sqlite' ? 'SQLite' : t('storage.local')} · ${t(health.noteCount === 1 ? 'storage.note.one' : 'storage.notes', { n: health.noteCount })}` : '…'}</div>
       </div>
     </aside>
   )
