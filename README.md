@@ -14,15 +14,16 @@
 - **Real-time, visible agent** — a dedicated runtime panel shows every step (plan, tool calls, live stream); stop, re-enter a requirement, and watch the note re-render live.
 - **Self-test questions** — the agent generates questions with answers and explanations inline.
 - **Local-first + BYOK** — all data stays in a local SQLite store; bring your own LLM key (any OpenAI-compatible endpoint). No cloud account, no server.
-- **Multi-provider** — built-in presets (DeepSeek official API, Volcengine Ark Coding Plan, GLM 5.3 Flash, local Ollama) plus unlimited custom endpoints.
+- **DeepSeek official out of the box** — ships configured for `deepseek-v4.1-flash` with a 1M-token output budget; any other OpenAI-compatible endpoint (including a model running on the same machine) can be added in Settings.
+- **English and Chinese UI** — one click in Settings switches the interface *and* the language the agent writes notes in; the app follows the system language on first launch.
 
 ## Screenshots
 
-| Workbench | Note with embedded demo |
+| Workbench | Note with an embedded demo (sandboxed, zero external requests) |
 |---|---|
 | ![dashboard](docs/screenshots/dashboard.png) | ![notes](docs/screenshots/notes.png) |
 
-| Inbox | Settings · providers |
+| Inbox | Settings · language, endpoint and agent tools |
 |---|---|
 | ![imports](docs/screenshots/imports.png) | ![settings](docs/screenshots/settings.png) |
 
