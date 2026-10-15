@@ -29,8 +29,13 @@ config/local.env
 /apps/desktop/tests/
 /vitest.config.ts
 /docs/TESTING.md
+# The recording pipeline: the scripted walkthrough driver and the screen-capture
+# script that points itself at the window. Both produce the course video and
+# neither is part of the product, so the app loads the driver through a computed
+# specifier and builds fine when it is absent (verified both ways).
 /scripts/record-demo.sh
 /scripts/harness-smoke.ts
+/apps/desktop/src/main/recorder.ts
 
 # CI is not part of the product; the repository ships the app itself.
 /.github/

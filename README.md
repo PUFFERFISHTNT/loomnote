@@ -59,13 +59,13 @@ LoomNote does not reimplement an agent loop. The agent layer is an integration w
 
 - **Node.js 24 or newer — a plain Node, not Electron's.** The harness runtime's native add-ons refuse to load under the Node that Electron ships, so the app looks for a system Node at startup. Set `LOOMNOTE_NODE` to point it at a specific executable.
 - **pnpm 10** (`packageManager: pnpm@10.34.5`).
-- **macOS or Windows.** The setup scripts cover both, and CI runs the suite on both.
+- **macOS or Windows.** The setup scripts cover both. macOS is verified end to end; the Windows paths are written but have not been run on hardware.
 - A model credential for the DeepSeek official API, or any OpenAI-compatible endpoint, entered in Settings.
 
 ## Quick start
 
 ```bash
-# one-command setup: checks the toolchain, installs deps, runs tests, builds
+# one-command setup: checks the toolchain, installs deps, builds
 ./scripts/setup.sh          # macOS / Linux
 .\scripts\setup.ps1         # Windows PowerShell
 
@@ -78,6 +78,30 @@ pnpm build
 ```
 
 `start.sh` / `start.ps1` load `config/local.env` when it exists, build the app on first run, and then launch Electron from a real terminal — which is also what keeps a host-injected `ELECTRON_RUN_AS_NODE` out of the app's environment. Use `pnpm dev` for the hot-reloading development build.
+
+## A worked example: input, and what to expect
+
+Reproducing the core path is a five-minute job on macOS.
+
+**Input** — one lecture PDF, `COMP2119 Lecture 08 — Balanced Trees` (70 slides), and this request typed into the agent panel:
+
+> Turn this lecture into an English study note. Where a diagram carries the meaning, look at that slide yourself and place the figure in the note with a caption. Animate how a rotation rebalances the tree, and end with five self-test questions that cite the slide page.
+
+**What you should see**, in order:
+
+1. The deck appears as the deck — *Slides* view, page 1 of 70 — within a few seconds of import.
+2. Your sentence is echoed in the agent panel, and below it a **Thinking** block that grows as the model works.
+3. Tool lines appear and complete: a run of `read_image` calls (the agent looking at individual slides), then `write` once, then `edit` for every later change.
+4. The note fills in on the left while it is being written; the header reads *Writing to the file…* and then *Saved*.
+5. Switch to **Slides+note**: the deck on the left, the note on the right. Walk the deck to a rotation slide and the note beside it describes the same rotation, with the figure drawn from that slide.
+6. Switch to **Read** and scroll: headings, KaTeX maths, figures with captions that end in `(p. 12)`, an interactive rotation demo, and five self-test questions whose answers cite their slide.
+7. Ask a follow-up (*"make the demo start from an unbalanced tree"*). The agent answers in chat and changes only the lines that needed it — it does not rewrite the note.
+
+**Where the result lives.** A note is a real file, not a database row: `<userData>/workspaces/<noteId>/note.md` next to `source/<deck>.pdf` and one PNG per slide in `source/pages/`. Open `note.md` in any editor to check what the agent actually wrote.
+
+**How to check it without a model.** Most of the app can be exercised with no model running: import a PDF and the *Slides* view works on its own; the note folder is plain files you can read; `pnpm typecheck` checks every package. The parts that need a model are the writing itself.
+
+A demo is a program the model wrote, so the app runs it in a locked-down frame before the note is allowed to keep it, and hands a failure back to the agent with the measurement rather than showing you a dead box. What a working one looks like is in [docs/PIPELINE.md](docs/PIPELINE.md); the suite's runs and the live run are recorded in [docs/EVIDENCE.md](docs/EVIDENCE.md).
 
 ## Configure a model
 
@@ -98,6 +122,7 @@ docs/               architecture, pipeline, testing and platform notes (English)
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — process and package boundaries, the profile overlay, the event flow, where local data lives, the security posture.
 - [docs/PIPELINE.md](docs/PIPELINE.md) — the end-to-end workflow, step by step, and the demo-discipline rules.
+- [docs/EVIDENCE.md](docs/EVIDENCE.md) — what was run, when, and what came back: the suite's results, the live run, and the known limitations.
 - [docs/SETUP-WINDOWS.md](docs/SETUP-WINDOWS.md) — Windows-specific setup notes.
 - [CHANGELOG.md](CHANGELOG.md) — what changed between versions.
 
