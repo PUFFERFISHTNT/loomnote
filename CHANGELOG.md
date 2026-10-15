@@ -12,6 +12,12 @@ All notable changes to LoomNote (dev-test version) are recorded here.
 - **The demo sandbox can be driven.** The frame's bridge answers `probe` (list its interactive controls) and `click` (press one by index), through the demo's own element handlers. This is what makes "the demo still plays" checkable without a human, and what the recorded walkthrough uses to exercise a demo.
 - `scripts/record-demo.sh` records the one-minute walkthrough against the live system: it points the screen recorder at the window's own reported rectangle, drives the scripted run in `apps/desktop` (`--demo=<pdf>|<request>`), and encodes the result at three speeds (input near real time, thinking compressed, finished note and demo near real time) so the whole pipeline fits the one-minute limit.
 
+### Windows setup
+- `scripts\setup.ps1` installs pnpm itself when it is missing (corepack first, then the user-level npm prefix — no admin rights), refreshes `PATH` from the registry so a double-clicked window finds a freshly installed Node.js, and runs `pnpm install` with `CI=true` so pnpm may replace `node_modules` without asking a question it has no way to ask.
+- The SQLite native module is prepared for Electron's ABI automatically. It is verified by loading it under Electron rather than by reading an ABI tag out of the binary — node-gyp embeds none, so a working module and a stale one look identical. A running instance is closed first, because Windows keeps the mapped `.node` file locked. When the rebuild fails (no C++ toolchain), the app still runs on the JSON store.
+- `scripts\start.ps1` uses `Start-Process -Wait`: PowerShell does not wait for a GUI subsystem process, so the call operator returned at once with a meaningless exit code and the script reported a failure that never happened.
+- Both scripts keep their window open when started by a double-click, and never block a non-interactive run.
+
 ### Fixed
 - A closed `:::toc` block no longer renders its contents as body text. A model reading the persona skeleton would write the section headings *inside* the block, and the page then showed the entire contents list twice.
 - The PDF viewer cancels an in-flight `page.render()` before starting another on the same canvas, instead of surfacing pdf.js's "cannot use the same canvas during multiple render operations" as a broken deck.
@@ -28,7 +34,7 @@ All notable changes to LoomNote (dev-test version) are recorded here.
 ### Added
 - The note is a real file: every note owns a working directory containing `note.md`, edited in place with the runtime's own `read` / `write` / `edit` tools and watched by the app for live preview.
 - Harness runtime discovery: the app locates a plain Node.js 24+ at startup (`LOOMNOTE_NODE` wins), because the runtime's native add-ons refuse to load under Electron's Node.
-- English documentation set: `docs/ARCHITECTURE.md`, `docs/PIPELINE.md`, `docs/TESTING.md`, `docs/SETUP-WINDOWS.md`, and a rewritten `README.md`.
+- English documentation set: `docs/ARCHITECTURE.md`, `docs/PIPELINE.md`, `docs/TESTING.md`, and a rewritten `README.md`.
 
 ### Removed
 - `packages/agent` — the legacy pre-harness agent loop and its tests, superseded by `packages/harness`.

@@ -25,7 +25,7 @@ pnpm build
 
 Then open **Settings**, pick the model endpoint (the DeepSeek official API preset is already filled in), paste your API key and save. English is the default interface language; switching to Chinese there also switches the language the agent writes notes in.
 
-The first time a note is talked about, the app looks for a plain Node.js 24+ on the machine and starts the harness runtime with it. If it cannot find one, it says so in the agent panel instead of failing silently — see [SETUP-WINDOWS.md](SETUP-WINDOWS.md) for the Windows paths it searches.
+The first time a note is talked about, the app looks for a plain Node.js 24+ on the machine and starts the harness runtime with it. If it cannot find one, it says so in the agent panel instead of failing silently — see [README.md](../README.md) for the Windows paths it searches.
 
 ## 1. Import a lecture
 
