@@ -1,9 +1,10 @@
+import { useCallback } from 'react'
 import { useApp } from '../stores/app.js'
 
 /** 全局错误提示（顶部深色 toast，可手动关闭，10s 自动消失）。 */
 export function Toast() {
   const error = useApp((s) => s.error)
-  const clearError = useApp((s) => s.clearError)
+  const clearError = useCallback(() => useApp.getState().setError(null), [])
 
   useEffectAutoDismiss(error, clearError)
   if (!error) return null

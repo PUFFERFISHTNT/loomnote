@@ -1,13 +1,14 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { noteSummaryTime, useApp } from '../stores/app.js'
+import { useChat } from '../stores/chat.js'
 import { locale, providerLabel, t, useLang } from '../i18n.js'
 
 export function Dashboard() {
   const h = useApp((s) => s.health)
   const notes = useApp((s) => s.notes)
   const imports = useApp((s) => s.imports)
-  const events = useApp((s) => s.events)
+  const events = useChat((s) => s.items)
   const settings = useApp((s) => s.settings)
   const navigate = useNavigate()
   useLang()

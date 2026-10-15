@@ -4,9 +4,35 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 import hljs from 'highlight.js'
+import { t } from '../i18n.js'
 
 export interface MarkdownRenderOptions {
   highlight?: boolean
+  /**
+   * Prefix for note-relative image paths.
+   *
+   * A note embeds figures the portable way — `![](source/pages/p012.png)` — so
+   * the same file renders correctly in any editor. The renderer has no
+   * filesystem access and lives on a different origin, so those paths are
+   * resolved through the app's own asset scheme instead. Absolute URLs, data
+   * URIs and protocol-relative paths are left exactly as the author wrote them.
+   */
+  assetBase?: string
+}
+
+/** Set for the duration of one `renderMarkdown` call. */
+let assetBase = ''
+
+/** Rewrite one `src` when it is a note-relative path. */
+function resolveAsset(src: string): string {
+  if (!assetBase) return src
+  if (/^[a-z][a-z0-9+.-]*:/i.test(src) || src.startsWith('//')) return src
+  const clean = src
+    .replace(/^\.?\//, '')
+    .split(/[\\/]/)
+    .filter((part) => part && part !== '.')
+    .join('/')
+  return clean ? `${assetBase.replace(/\/$/, '')}/${clean.split('/').map(encodeURIComponent).join('/')}` : src
 }
 
 /**
@@ -64,25 +90,79 @@ export function createMarkdownIt(): MarkdownIt {
     let nextLine = startLine + 1
     if (kind === 'demo') {
       const inner: string[] = []
+      let closed = false
       while (nextLine < endLine) {
         const l = state.src.slice(state.bMarks[nextLine]!, state.eMarks[nextLine]!)
-        if (/^\s*:::\s*$/.test(l)) break
+        if (/^\s*:::\s*$/.test(l)) {
+          closed = true
+          break
+        }
+        // A model that forgets the closing fence must not swallow the rest of
+        // the note into its demo: the block ends at the next heading too. What
+        // is left is a demo that fails its runtime check and is sent back.
+        if (inner.length > 0 && /^#{1,3} /.test(l)) break
         inner.push(l)
         nextLine++
       }
       const idx = demoSink.push(inner.join('\n')) - 1
       const title = md.utils.escapeHtml(meta.replace(/^[{\s]+|[}\s]+$/g, '') || '交互演示')
       html = `<div class="loom-demo" data-demo-idx="${idx}" data-demo-title="${title}"></div>`
-      state.line = nextLine + 1
+      // Consume the closing fence itself; a heading that ended the block is the
+      // next block and must still be tokenized as one.
+      state.line = closed ? nextLine + 1 : nextLine
+    } else if (kind === 'toc') {
+      // `:::toc` is a slot the app fills, not a list the author writes. A model
+      // that puts real headings inside the block — which happens, because the
+      // persona's skeleton shows one right after the marker — would otherwise
+      // get the whole contents list rendered twice on the page. Consume the
+      // block body and keep the slot.
+      // A model that writes the contents list itself closes the block with
+      // `:::`, and those lines must not also render as body text. But an
+      // unclosed `:::toc` is the plain slot form — and the *next* `:::` in the
+      // document is then the terminator of a later block, not this one. The
+      // scan therefore stops at another directive as well: if one appears
+      // first, this block was never closed and only its own line is consumed.
+      let cursor = startLine + 1
+      let closed = false
+      while (cursor < endLine) {
+        const body = state.src.slice(state.bMarks[cursor]!, state.eMarks[cursor]!)
+        cursor += 1
+        if (/^\s*:::\s*$/.test(body)) {
+          closed = true
+          break
+        }
+        if (/^\s*:::(toc|demo|details)\b/.test(body)) break
+      }
+      state.line = closed ? cursor : startLine + 1
+      html = '<div class="loom-toc" data-toc="1"></div>'
     } else {
       state.line = startLine + 1
-      if (kind === 'toc') html = '<div class="loom-toc" data-toc="1"></div>'
-      else if (kind === 'details') html = `<details class="loom-details"><summary>${md.utils.escapeHtml(meta || '展开')}</summary>`
+      if (kind === 'details') html = `<details class="loom-details"><summary>${md.utils.escapeHtml(meta || '展开')}</summary>`
     }
     const token = state.push('html_block', '', 0)
     token.content = html
     token.map = [startLine, state.line]
     return true
+  },
+  // Without `alt`, markdown-it never consults this rule as a terminator for an
+  // open paragraph — so a `:::demo` written on the line straight after body
+  // text was swallowed into that paragraph and never became a demo at all.
+  // markdown-it's own `fence` rule declares the same set.
+  { alt: ['paragraph', 'reference', 'blockquote', 'list'] })
+
+  // Resolve note-relative image paths against the note's own folder.
+  md.core.ruler.push('loomnote-assets', (state: any) => {
+    if (!assetBase) return false
+    for (const token of state.tokens as any[]) {
+      const children: any[] | undefined = token.children
+      if (!children) continue
+      for (const child of children) {
+        if (child.type !== 'image') continue
+        const src = child.attrGet('src')
+        if (typeof src === 'string') child.attrSet('src', resolveAsset(src))
+      }
+    }
+    return false
   })
 
   return md
@@ -97,10 +177,16 @@ export interface RenderResult {
   demos: string[]
 }
 
-export function renderMarkdown(src: string): RenderResult {
+export function renderMarkdown(src: string, options: MarkdownRenderOptions = {}): RenderResult {
   if (!mdInstance) mdInstance = createMarkdownIt()
   demoSink = []
-  const html = mdInstance.render(src)
+  assetBase = options.assetBase ?? ''
+  let html: string
+  try {
+    html = mdInstance.render(src)
+  } finally {
+    assetBase = ''
+  }
   const demos = [...demoSink]
   demoSink = []
   return { html, demos }
@@ -121,13 +207,26 @@ export async function hydrateMarkdown(root: HTMLElement): Promise<void> {
     heads.forEach((h, i) => {
       h.id = h.id || `h-${i}`
       const a = document.createElement('a')
-      a.href = `#${h.id}`
+      // The window is a HashRouter: a bare `#h-2` is a route change, not an
+      // anchor jump, and it lands on an empty page. Scroll instead.
+      a.href = 'javascript:void(0)'
+      a.setAttribute('role', 'link')
+      a.tabIndex = 0
+      a.dataset['target'] = h.id
       a.textContent = (h instanceof HTMLHeadingElement ? h.textContent : '') || ''
       a.style.cssText = `color:#5d7a9d;text-decoration:none;font-size:${h.tagName === 'H2' ? 13.5 : 12.5}px;padding:${h.tagName === 'H2' ? '4px' : '2px'} 0 0 10px`
       list.appendChild(a)
     })
+    list.addEventListener('click', (event) => {
+      const anchor = (event.target as HTMLElement | null)?.closest('a[data-target]')
+      if (!anchor) return
+      event.preventDefault()
+      const id = anchor.getAttribute('data-target')
+      const target = id ? root.querySelector(`#${CSS.escape(id)}`) : null
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
     const label = document.createElement('div')
-    label.textContent = '目录'
+    label.textContent = t('notes.toc')
     label.style.cssText = 'font-weight:700;font-size:12px;color:#9b9a97;letter-spacing:.5px;margin-bottom:6px'
     toc.replaceChildren(label, list)
   }

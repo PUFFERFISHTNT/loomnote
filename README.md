@@ -1,21 +1,45 @@
-# 织记 LoomNote
+# LoomNote
 
 [![CI](https://github.com/PUFFERFISHTNT/loomnote/actions/workflows/ci.yml/badge.svg)](https://github.com/PUFFERFISHTNT/loomnote/actions/workflows/ci.yml)
 
-**Local-first AI study companion.** Turn a lecture PDF into a living, exam-ready note — structured Markdown with KaTeX formulas, tables, self-test questions, and interactive HTML demos embedded exactly where a concept benefits from being seen moving (an animated queue, a step-through recursion, a clickable state machine).
+LoomNote is a local-first desktop study companion. A student drops in a lecture PDF and says in plain words what they want; an AI agent writes the study note while they watch — structured Markdown with KaTeX formulas, tables, self-test questions that cite the lecture page, and self-contained interactive HTML demos embedded wherever a concept is easier to see moving than to read. Everything runs on the student's own computer against a model key they bring themselves: no account, no server, and nothing uploaded.
 
-> One specific user, one concrete task, end to end on your own computer. An AI agent does the organising *in plain sight*: import a file, type a requirement, watch it plan/call tools/stream the note live, interrupt and redirect at any moment.
+## How it works
+
+1. **Import a lecture.** Drag a PDF, Markdown or TXT file into the Inbox. The text is extracted locally (pdf.js); anything unsupported is refused with a clear message rather than silently mangled.
+2. **The agent reads it.** The imported material becomes the context for the note, and the agent reads the note file itself before every change — never from memory.
+3. **It plans.** The request becomes a turn on a DeepSeek Harness session: the agent reasons, decides which tools to call, and calls them one step at a time, in the open.
+4. **It writes the note file.** Every note owns a working directory containing `note.md`. The agent edits that file with the runtime's own `read` / `write` / `edit` tools, so a small request is a small change — the product never rewrites a whole note to alter one line.
+5. **It embeds a demo where movement teaches.** When a concept changes over time or over inputs — a queue draining, a recursion unwinding, a state machine stepping — the agent writes one self-contained interactive HTML block, and the note renders it inside a sandbox.
+6. **It looks at the figures.** When a diagram carries the meaning, the agent opens that page image itself and places the figure in the note with a caption — rather than describing a picture it has not seen.
+7. **It adds self-test questions that cite the lecture page.** Questions come with answers and explanations, and each answer points back at the material it came from, e.g. `(Lecture 3, p. 12)`.
+
+## Built on the DeepSeek Harness runtime
+
+LoomNote does not reimplement an agent loop. The agent layer is an integration with the **DeepSeek Harness** agent runtime (the npm packages `@deepseek-ai/dsh*`, pinned at `0.2.0-rc.2`), in `packages/harness`.
+
+- **A supervised child process.** `@loomnote/harness` spawns the runtime as `dsh --profile sdk --patch <generated overlay>` and drives it over the runtime's published SDK JSON-RPC protocol on stdio — `initialize`, `session/prompt`, `shutdown`, plus the `session.event` and `session.status` notifications. The runtime's durable session log is translated into LoomNote's own event vocabulary (`HarnessEvent`), which is the only thing the rest of the app sees. Keeping the runtime out of the Electron main process means a harness failure is a restartable session, not a dead app.
+- **A LoomNote-owned profile overlay.** `loomnote-study.patch.yml` is generated at runtime (`packages/harness/src/profile.ts`) and composed on top of the shipped `sdk` profile. It (a) sets the study-agent persona, (b) disables every tool a study-notes app has no use for — bash, pwsh, jobs, subagents, workflows, goals, skills, the plugin manager — leaving the file tools (`read` / `write` / `edit`), the search tools (`glob` / `grep`) and an opt-in web fetch, and (c) installs a permission preset, `loomnote-note-workspace` (sandbox `workspace-write`, approval `never`), so the agent can write inside the note's own folder and anything outside it is refused rather than turned into a prompt an SDK client cannot answer.
+- **Thinking is shown as it happened.** The runtime publishes an assistant message when a step commits, not per token — but every committed message carries its original model stream: runs of reasoning, answer and tool-argument deltas, each with the millisecond gaps between them. LoomNote replays those gaps (`packages/harness/src/stream-replay.ts`) to reproduce the "watch it think" view. The replay is presentation only: the committed event always follows it, so a dropped replay can never change what the note contains.
+- **The agent can ask the student to choose.** An SDK client has no wire method to answer the runtime's blocking ask-user tool, so LoomNote asks in band: the agent ends a reply with a fenced `loomnote:ask` block holding a question and 2–5 options, the app renders them as clickable cards, and a click becomes the next user message (`packages/harness/src/ask.ts`).
+- **The agent sees the slides.** A PDF import is copied into the note's own folder as `source/<name>.pdf`, and the renderer rasterises one PNG per page into `source/pages/`. `read_image` (from the runtime's own filesystem tool) is left enabled in the profile precisely so the agent can open a page, look at the diagram, and embed it — instead of guessing from extracted text.
+- **A real Node.js runtime is required.** The harness loads native add-ons whose loader supports plain Node only; under Electron-as-node it refuses to start. The app therefore locates a system Node at startup (`packages/harness/src/node-runtime.ts`), honouring the `LOOMNOTE_NODE` environment variable, and fails with an actionable message when it cannot find one.
 
 ## Features
 
-- **Smart import** — drag PDF / Markdown / TXT into the inbox; text is extracted locally (pdf.js). Unsupported types are rejected with a clear message, never silently corrupted.
-- **Agentic organising** — a harness agent (plan → call tools → observe → revise) reorganises material into structured Markdown; type requirements like *"add a demo of the queueing problem"* and it adapts.
-- **Mixed md + HTML notes** — Markdown as the single source of truth; `:::demo` slots carry sandboxed interactive HTML demos (CSP + sandboxed iframe, zero external requests).
-- **Real-time, visible agent** — a dedicated runtime panel shows every step (plan, tool calls, live stream); stop, re-enter a requirement, and watch the note re-render live.
-- **Self-test questions** — the agent generates questions with answers and explanations inline.
+- **Smart import** — drag PDF / Markdown / TXT into the Inbox; text is extracted locally (pdf.js). Unsupported types are rejected with a clear message, never silently corrupted.
+- **A harness agent, not a home-grown loop** — planning, tool calls and revisions all run on the DeepSeek Harness runtime, under a LoomNote profile that trims the toolbelt down to what a note needs.
+- **Thinking, streamed** — the runtime panel shows reasoning and answer text replayed at the pace the model produced it, alongside every tool call and its result. Stop at any point and ask for something else.
+- **The note is a real file** — `note.md` in the note's own folder, edited in place with the runtime's file tools and watched by the app, so the preview follows the file rather than the other way round.
+- **See the deck, not our extraction of it** — an imported PDF opens as the PDF: the *Slides* view renders it page by page, the *Slides + note* view puts the deck beside the note written from it, and both sit next to the read/edit tabs.
+- **The agent reads the slides itself** — every PDF page is rasterised once into the note's own folder, and the agent reads the pages it needs with `read_image`, then embeds a figure with a caption where a diagram says it better than prose (`![...](source/pages/p012.png)` — a relative path, so the note stays portable).
+- **Mixed md + HTML notes** — Markdown as the single source of truth; `:::demo` slots carry sandboxed interactive HTML demos (CSP + sandboxed iframe, zero external requests). The sandbox bridge can also list a demo's controls and press one, which is how "the demo still plays" is checked without a human.
+- **Room to work** — the navigation rail, the note list and the agent panel each fold away on their own, and the preferences survive a restart.
+- **Self-test questions** — the agent generates questions with answers and explanations inline, each citing where it came from.
+- **The agent asks instead of guessing** — an ambiguous request comes back as 2–5 clickable options, and the click continues the conversation.
 - **Local-first + BYOK** — all data stays in a local SQLite store; bring your own LLM key (any OpenAI-compatible endpoint). No cloud account, no server.
-- **DeepSeek official out of the box** — ships configured for `deepseek-v4.1-flash` with a 1M-token output budget; any other OpenAI-compatible endpoint (including a model running on the same machine) can be added in Settings.
-- **English and Chinese UI** — one click in Settings switches the interface *and* the language the agent writes notes in; the app follows the system language on first launch.
+- **DeepSeek official out of the box** — ships configured for `deepseek-flash` with a 1M-token output budget; any other OpenAI-compatible endpoint (including a model running on the same machine) can be added in Settings.
+- **English and Chinese** — English is the default; one click in Settings switches both the interface language and the language the agent writes notes in.
 
 ## Screenshots
 
@@ -23,52 +47,61 @@
 |---|---|
 | ![dashboard](docs/screenshots/dashboard.png) | ![notes](docs/screenshots/notes.png) |
 
+| The original deck | Deck and note, side by side |
+|---|---|
+| ![slides](docs/screenshots/slides.png) | ![split](docs/screenshots/split.png) |
+
 | Inbox | Settings · language, endpoint and agent tools |
 |---|---|
 | ![imports](docs/screenshots/imports.png) | ![settings](docs/screenshots/settings.png) |
 
-## Quick Start (development build)
+## Requirements
 
-Requirements: Node.js 24+, pnpm 10.
+- **Node.js 24 or newer — a plain Node, not Electron's.** The harness runtime's native add-ons refuse to load under the Node that Electron ships, so the app looks for a system Node at startup. Set `LOOMNOTE_NODE` to point it at a specific executable.
+- **pnpm 10** (`packageManager: pnpm@10.34.5`).
+- **macOS or Windows.** The setup scripts cover both, and CI runs the suite on both.
+- A model credential for the DeepSeek official API, or any OpenAI-compatible endpoint, entered in Settings.
+
+## Quick start
 
 ```bash
-# one-command setup (installs deps, builds, prints launch hint)
+# one-command setup: checks the toolchain, installs deps, runs tests, builds
 ./scripts/setup.sh          # macOS / Linux
-.\scripts\setup.ps1         # Windows
+.\scripts\setup.ps1         # Windows PowerShell
 
 # or manually
 pnpm install
-pnpm test                   # 61 tests
-pnpm typecheck
+pnpm typecheck              # TS strict across every package
 pnpm build
 ./scripts/start.sh          # launch the app
+.\scripts\start.ps1         # launch the app on Windows
 ```
 
-> The app is local-first: configure your LLM endpoint under **Settings** (a provider preset is pre-filled) and paste your own API key. The key stays on your machine.
+`start.sh` / `start.ps1` load `config/local.env` when it exists, build the app on first run, and then launch Electron from a real terminal — which is also what keeps a host-injected `ELECTRON_RUN_AS_NODE` out of the app's environment. Use `pnpm dev` for the hot-reloading development build.
 
-## Development
+## Configure a model
+
+DeepSeek's official API is the preset, already pointed at `deepseek-flash` with a long output budget. Open **Settings**, paste your own API key and save: the key is held in the app's local store and is never written to disk in a form that leaves the machine. Additional OpenAI-compatible endpoints can be added there too; each one becomes a route in the generated profile overlay, and its key travels in the child process environment rather than in the overlay file.
+
+## Repository layout
 
 ```
-packages/core/     IR parsing · demo HTML discipline validator · query feature analysis
-packages/memory/   memory engine (chunker / dedup / recall / folding / rules)
-packages/agent/    harness runtime (SSE provider · dual tool protocol · tool registry · agent loop)
-apps/desktop/      Electron 43 app (main / preload / renderer · demo sandbox · screenshot mode)
-docs/              design blueprint (final/) + working lessons (WORKFLOW_LESSONS.md)
+packages/core/      IR parsing · demo HTML discipline validator · query feature analysis
+packages/memory/    memory engine (chunker / dedup / recall / folding / rules)
+packages/harness/   DeepSeek Harness bridge: process supervision, SDK JSON-RPC session,
+                    event normalisation, stream replay, profile overlay, ask blocks
+apps/desktop/       Electron app (main / preload / renderer · demo sandbox · note workspace)
+docs/               architecture, pipeline, testing and platform notes (English)
 ```
-
-- `pnpm test` — unit + e2e suite (parsers, agent loop, memory, sandbox validator, IPC)
-- `pnpm typecheck` — TS strict across all packages
-- CI: GitHub Actions dual matrix (macOS + Windows)
 
 ## Documentation
 
-- [docs/final/00-项目总纲.md](docs/final/00-项目总纲.md) — project constitution & ADR decisions
-- [docs/final/02-产品定义与功能规划.md](docs/final/02-产品定义与功能规划.md) — product definition
-- [docs/final/03-技术架构与工程设计.md](docs/final/03-技术架构与工程设计.md) — architecture & engineering
-- [docs/final/04-记忆引擎与智能进化.md](docs/final/04-记忆引擎与智能进化.md) — memory engine design
-- [docs/final/05-开发执行计划.md](docs/final/05-开发执行计划.md) — milestones & acceptance
-- [docs/final/07-安全基线.md](docs/final/07-安全基线.md) — security baseline
-- [WORKFLOW_LESSONS.md](WORKFLOW_LESSONS.md) — field-tested pitfalls (maintainers)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — process and package boundaries, the profile overlay, the event flow, where local data lives, the security posture.
+- [docs/PIPELINE.md](docs/PIPELINE.md) — the end-to-end workflow, step by step, and the demo-discipline rules.
+- [docs/SETUP-WINDOWS.md](docs/SETUP-WINDOWS.md) — Windows-specific setup notes.
+- [CHANGELOG.md](CHANGELOG.md) — what changed between versions.
+
+Internal planning and review documents are kept outside this repository; the public tree ships English documentation only.
 
 ## Your material, your responsibility
 
@@ -85,4 +118,4 @@ UNLICENSED — all rights reserved. This is a private course/product project; li
 
 ## Course
 
-Built as the team project for **AILT9019 · AI Literacy II** (HKU, Fall 2026). Proposal (not public): course deliverable, kept out of this repository.
+Built as the team project for **AILT9019 · AI Literacy II** (HKU, Fall 2026). The course proposal is a course deliverable and is kept out of this repository.

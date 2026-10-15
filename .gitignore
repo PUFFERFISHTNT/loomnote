@@ -11,7 +11,23 @@ release/
 .vite/
 config/local.env
 
-# 课程 proposal 不公开
+# Course proposal — not public, kept on this machine only
 /docs/AILT9019-proposal.md
 
+# Chinese internal planning documents live OUTSIDE this repository, in a sibling
+# directory (loomnote-zh-docs/). These patterns are belt-and-braces: a copy of
+# that tree must never be committed back into the public repository, which ships
+# English documentation only.
+/loomnote-zh-docs/
+/zh-docs/
+
 *.tsbuildinfo
+
+# The repository ships the product, not its test suite or the tools used to make
+# the course deliverables. Both stay on the machine that runs them.
+/packages/*/tests/
+/apps/desktop/tests/
+/vitest.config.ts
+/docs/TESTING.md
+/scripts/record-demo.sh
+/scripts/harness-smoke.ts

@@ -1,6 +1,7 @@
-import type { AgentEvent, ImportRecord, Note } from '@loomnote/core'
+import type { HarnessEvent } from '@loomnote/harness'
+import type { ImportRecord, Note } from '@loomnote/core'
 
-export type { AgentEvent } from '@loomnote/core'
+export type { HarnessEvent } from '@loomnote/harness'
 
 export const IPC = {
   health: 'app:health',
@@ -12,9 +13,24 @@ export const IPC = {
   saveNote: 'note:save',
   getSettings: 'settings:get',
   setSettings: 'settings:set',
-  runAgent: 'agent:run',
-  agentCancel: 'agent:cancel',
-  agentEvent: 'agent:event',
+  /** Ask a note's harness session to work on a request. */
+  chatSend: 'chat:send',
+  /** Stop a note's harness session. */
+  chatStop: 'chat:stop',
+  /** Current lifecycle state of every live session. */
+  chatStatus: 'chat:status',
+  /** Renderer-bound push: one harness event, tagged with its note. */
+  chatEvent: 'chat:event',
+  /** Renderer-bound push: the note file changed on disk. */
+  noteLive: 'note:live',
+  /** Write a note body to both the database and the agent's working file. */
+  noteWrite: 'note:write',
+  /** Describe the lecture a note was imported from. */
+  noteSource: 'note:source',
+  /** Write a note-relative asset (a rendered slide image) from base64 bytes. */
+  noteWriteAsset: 'note:writeAsset',
+  /** Read a note-relative asset (the imported deck) as bytes. */
+  noteReadAsset: 'note:readAsset',
   lang: 'app:lang'
 } as const
 
@@ -56,7 +72,7 @@ export const PRESET_PROVIDERS: ProviderConfig[] = [
     name: 'DeepSeek 官方 API',
     baseURL: 'https://api.deepseek.com/v1',
     apiKey: '',
-    model: 'deepseek-v4.1-flash',
+    model: 'deepseek-flash',
     maxTokens: 1000000
   }
 ]
@@ -114,9 +130,37 @@ export interface ImportSummary {
   createdAt: number
 }
 
-/** preload 暴露给渲染层的 API 契约 */
+/** One harness event, tagged with the note whose session produced it. */
+export interface ChatEventPayload {
+  noteId: string
+  event: HarnessEvent
+}
+
+/** The note file's new contents after the agent (or the app) wrote it. */
+export interface NoteLivePayload {
+  noteId: string
+  bodyMd: string
+}
+
+/** The lecture a note came from, as the renderer needs to show it. */
+export interface NoteSourceInfo {
+  /** Original file name. */
+  name: string
+  /** `pdf` decks get a slide view; anything else is offered as a download. */
+  kind: 'pdf' | 'other'
+  /** Page images already rendered into the note folder, 1-based. */
+  pages: number[]
+}
+
+/** Lifecycle state of one live session. */
+export interface SessionStatus {
+  noteId: string
+  status: 'starting' | 'ready' | 'running' | 'idle' | 'stopped' | 'error'
+}
+
+/** The API `contextBridge` exposes to the renderer. */
 export interface LoomnoteApi {
-  /** 启动即读：首帧就按正确语言渲染（同步，无闪烁） */
+  /** Read synchronously at boot so the first frame is already in the right language. */
   defaultLang: Lang
   health(): Promise<HealthInfo>
   listImports(): Promise<ImportSummary[]>
@@ -127,11 +171,35 @@ export interface LoomnoteApi {
   saveNote(note: Note): Promise<Note>
   getSettings(): Promise<Settings>
   setSettings(s: Settings): Promise<Settings>
-  runAgent(task: string): Promise<{ output: string; steps: number; toolCalls: number }>
-  cancelAgent(): Promise<void>
-  /** 拖拽导入：把渲染层 File 对象换成本地绝对路径（Electron webUtils） */
+  /** Send a request to a note's agent session; resolves with the durable receipt. */
+  chatSend(noteId: string, text: string): Promise<{ messageId: string }>
+  /** Stop a note's agent session. */
+  chatStop(noteId: string): Promise<void>
+  /**
+   * Write a note body. Both copies move together: the durable row the app
+   * lists, and the file the agent reads on its next turn.
+   */
+  noteWrite(noteId: string, bodyMd: string): Promise<void>
+  /** Live session states. */
+  chatStatus(): Promise<SessionStatus[]>
+  /** The lecture this note was imported from, or null when it had none. */
+  noteSource(noteId: string): Promise<NoteSourceInfo | null>
+  /** Store a note-relative asset; used for the rendered slide images. */
+  noteWriteAsset(noteId: string, relPath: string, base64: string): Promise<void>
+  /**
+   * Read a note-relative asset as bytes.
+   *
+   * PDF rendering goes through here rather than through the asset scheme: the
+   * window's origin is `file://`, and Chromium refuses a cross-origin XHR to a
+   * non-standard scheme, so the bytes have to arrive over IPC.
+   */
+  noteReadAsset(noteId: string, relPath: string): Promise<Uint8Array>
+  /** Turn a dropped `File` into its absolute local path (Electron `webUtils`). */
   getPathForFile(file: File): Promise<string>
-  onAgentEvent(cb: (e: AgentEvent) => void): () => void
+  /** Subscribe to harness events. */
+  onChatEvent(cb: (payload: ChatEventPayload) => void): () => void
+  /** Subscribe to note-file changes. */
+  onNoteLive(cb: (payload: NoteLivePayload) => void): () => void
 }
 
 export function isSettings(v: unknown): v is Settings {

@@ -236,15 +236,23 @@ button { font-family: inherit; }
 .note-list li .t span { font-size: 11px; color: var(--text3); }
 .pane-main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 .note-toolbar {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 10px 12px; flex-wrap: wrap;
   padding: 10px 24px; border-bottom: 1px solid var(--line); background: #fff;
 }
-.note-toolbar .crumb { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
-.note-toolbar .crumb b { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tabs { display: flex; gap: 2px; background: var(--bg-hover); border-radius: 7px; padding: 2px; }
+/* The breadcrumb yields first: a long file name must never push the view
+   switcher or the action button on top of each other. */
+.note-toolbar .crumb { flex: 1 1 180px; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.note-toolbar .crumb b {
+  font-size: 14px; font-weight: 600; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.note-toolbar .crumb .save-chip { flex-shrink: 0; }
+.note-toolbar > .btn { flex: 0 0 auto; white-space: nowrap; }
+.tabs { display: flex; gap: 2px; background: var(--bg-hover); border-radius: 7px; padding: 2px; flex: 0 0 auto; }
 .tabs button {
   border: none; background: none; padding: 4px 13px; font-size: 13px; font-weight: 500;
   color: var(--text2); border-radius: 5px; cursor: pointer; transition: all 0.12s;
+  white-space: nowrap;
 }
 .tabs button.active { background: #fff; color: var(--text); box-shadow: 0 1px 2px rgba(15,15,15,0.08); }
 .note-body { flex: 1; overflow-y: auto; }
@@ -378,12 +386,15 @@ button { font-family: inherit; }
 .req-input {
   display: flex; gap: 6px; padding: 10px 14px; border-top: 1px solid var(--line);
 }
-.req-input input {
+.req-input input,
+.req-input textarea {
   flex: 1; border: 1px solid var(--line2); border-radius: var(--radius);
   background: #fff; padding: 7px 11px; font-size: 13px; outline: none; font-family: inherit;
   user-select: text;
 }
-.req-input input:focus { border-color: var(--accent); }
+.req-input input:focus,
+.req-input textarea:focus { border-color: var(--accent); }
+.req-input textarea { resize: none; line-height: 1.5; max-height: 150px; overflow-y: auto; }
 /* 实时生成预览（agent 边写边渲染） */
 .live-preview {
   position: sticky; top: 0; z-index: 5; background: #fff;
@@ -394,3 +405,128 @@ button { font-family: inherit; }
   display: flex; align-items: center; gap: 8px; padding: 10px 48px 0;
   font-size: 12.5px; color: var(--accent); font-weight: 600;
 }
+
+/* ============ 对话面板（ChatPanel） ============ */
+.chat-user { display: flex; flex-direction: column; align-items: flex-end; margin: 14px 0 10px; }
+.chat-user-text {
+  background: var(--accent-bg); color: #14405e; border-radius: var(--radius-lg) var(--radius-lg) 3px var(--radius-lg);
+  padding: 8px 12px; font-size: 13.5px; line-height: 1.55; max-width: 92%; user-select: text; white-space: pre-wrap; word-break: break-word;
+}
+.chat-answer { margin: 4px 0 12px; }
+.chat-answer-text { font-size: 13.5px; line-height: 1.65; color: var(--text); user-select: text; white-space: pre-wrap; word-break: break-word; }
+.chat-time { font-size: 10.5px; color: var(--text3); margin-top: 3px; align-self: flex-end; }
+.chat-live { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: 9px 11px; margin: 12px 0; background: #fff; }
+.chat-live-head { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+.chat-live-answer { font-size: 13.5px; line-height: 1.65; color: var(--text); white-space: pre-wrap; word-break: break-word; user-select: text; }
+.thinking-block { margin: 6px 0 8px; }
+.thinking-head {
+  display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; letter-spacing: .3px;
+  color: var(--text3); background: none; border: none; padding: 2px 0; cursor: pointer;
+}
+.thinking-block.settled .thinking-head:hover { color: var(--accent); }
+.thinking-meta { font-weight: 400; color: var(--text3); }
+.thinking-body {
+  font-size: 12.5px; line-height: 1.6; color: var(--text2); white-space: pre-wrap; word-break: break-word;
+  border-left: 2px solid var(--line2); padding: 2px 0 2px 10px; margin-top: 4px; max-height: 320px; overflow-y: auto; user-select: text;
+}
+.chat-tool { border: 1px solid var(--line); border-radius: var(--radius); margin: 6px 0; background: #fff; border-left: 3px solid #d3d1cb; }
+.chat-tool.ok { border-left-color: var(--ok); }
+.chat-tool.fail { border-left-color: var(--err); }
+.chat-tool summary { display: flex; align-items: center; gap: 8px; padding: 7px 10px; cursor: pointer; font-size: 12px; }
+.chat-tool summary code { font-family: var(--mono); font-size: 11.5px; background: var(--bg-code); padding: 1px 6px; border-radius: 4px; }
+.chat-tool-state { color: var(--text3); font-size: 11px; }
+.chat-tool .json { margin: 0; border-top: 1px solid var(--line); max-height: 260px; }
+.chat-tool-out { color: var(--text2); }
+.chat-ask { border: 1px solid #cfe3f5; background: #f7fbff; border-radius: var(--radius-lg); padding: 12px 13px; margin: 12px 0; }
+.chat-ask-head { font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--accent); }
+.chat-ask-question { font-size: 13.5px; font-weight: 600; margin: 5px 0 10px; line-height: 1.5; }
+.chat-ask-options { display: flex; flex-direction: column; gap: 6px; }
+.chat-ask-option {
+  text-align: left; border: 1px solid var(--line2); background: #fff; border-radius: var(--radius);
+  padding: 8px 11px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; font-family: inherit;
+}
+.chat-ask-option:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-bg); }
+.chat-ask-option:disabled { opacity: .55; cursor: default; }
+.chat-ask-option b { font-size: 13px; font-weight: 600; color: var(--text); }
+.chat-ask-option span { font-size: 11.5px; color: var(--text2); line-height: 1.45; }
+.chat-ask-answered { font-size: 12.5px; color: var(--ok); }
+.chat-error {
+  margin: 0 14px 8px; padding: 8px 11px; background: var(--err-bg); border: 1px solid #efc7c4;
+  border-radius: var(--radius); font-size: 12.5px; color: var(--err); user-select: text;
+}
+.chat-compose { border-top: 1px solid var(--line); }
+.chat-modes { display: flex; gap: 4px; padding: 9px 14px 0; }
+.chat-modes button {
+  border: 1px solid transparent; background: none; font-size: 11.5px; color: var(--text3);
+  padding: 3px 9px; border-radius: 999px; cursor: pointer; font-family: inherit;
+}
+.chat-modes button:hover { background: var(--bg-hover); color: var(--text2); }
+.chat-modes button.active { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+.save-chip.writing { display: inline-flex; align-items: center; gap: 5px; color: var(--accent); background: var(--accent-bg); }
+
+/* ============ 原稿视图（PdfViewer）与笔记配图 ============ */
+.page-progress {
+  display: flex; align-items: center; gap: 8px; padding: 8px 48px; font-size: 12.5px;
+  color: var(--text2); background: var(--bg-side); border-bottom: 1px solid var(--line);
+}
+.slide-view { display: flex; flex-direction: column; gap: 10px; padding: 14px 24px 40px; align-items: center; }
+.slide-toolbar { display: flex; align-items: center; gap: 8px; width: 100%; max-width: 1000px; }
+.slide-toolbar .btn { padding: 3px 12px; font-size: 14px; line-height: 1.2; }
+.slide-count { font-size: 12.5px; color: var(--text2); font-variant-numeric: tabular-nums; min-width: 54px; text-align: center; }
+.slide-hint { margin-left: auto; font-size: 11.5px; color: var(--text3); }
+.slide-canvas-wrap {
+  border: 1px solid var(--line2); border-radius: var(--radius); overflow: hidden;
+  box-shadow: var(--shadow); background: #fff; max-width: 1000px; width: 100%; display: flex; justify-content: center;
+}
+.slide-canvas { display: block; max-width: 100%; height: auto; }
+.md img {
+  max-width: 100%; height: auto; border: 1px solid var(--line2); border-radius: var(--radius);
+  margin: 10px 0; background: #fff;
+}
+
+/* ============ 并排：原稿 + 笔记（Split） ============ */
+.split-view { display: flex; height: 100%; min-height: 0; }
+.split-left {
+  width: 42%; min-width: 320px; border-right: 1px solid var(--line);
+  overflow-y: auto; background: var(--bg-side);
+}
+.split-right { flex: 1; min-width: 0; overflow-y: auto; }
+.split-left .slide-view { padding: 10px 12px 30px; }
+.split-left .slide-toolbar { max-width: 100%; }
+.split-left .slide-canvas-wrap { max-width: 100%; }
+.split-left .slide-hint { display: none; }
+
+/* ============ 可折叠侧栏 ============ */
+.side { transition: width .16s ease; }
+.side-head { position: relative; }
+.side-title { min-width: 0; overflow: hidden; white-space: nowrap; }
+.side-collapse {
+  margin-left: auto; flex-shrink: 0; border: 1px solid transparent; background: none;
+  color: var(--text3); font-size: 13px; line-height: 1; padding: 4px 6px; border-radius: var(--radius);
+  cursor: pointer; font-family: inherit;
+}
+.side-collapse:hover { background: var(--bg-hover); color: var(--text); }
+.side.collapsed { width: 56px; padding: 10px 6px; }
+.side.collapsed .side-title,
+.side.collapsed .label,
+.side.collapsed .side-meta { display: none; }
+.side.collapsed .side-head { justify-content: center; padding: 8px 0; }
+.side.collapsed .side-collapse { margin: 0; position: absolute; right: -2px; bottom: -18px; z-index: 2; }
+.side.collapsed nav a,
+.side.collapsed .side-agent-btn { justify-content: center; padding-left: 0; padding-right: 0; gap: 0; }
+.side.collapsed .side-agent-btn .pulse-dot { position: absolute; top: 6px; right: 8px; }
+.side.collapsed .side-agent-btn { position: relative; }
+
+/* ============ 可折叠笔记列表 ============ */
+.pane-side { transition: width .16s ease; }
+.pane-side-head { display: flex; align-items: center; gap: 6px; }
+.pane-side-head h3 { flex: 1; min-width: 0; }
+.pane-collapse {
+  border: 1px solid transparent; background: none; color: var(--text3); cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 4px 6px; border-radius: var(--radius); font-family: inherit;
+}
+.pane-collapse:hover { background: var(--bg-hover); color: var(--text); }
+.pane-side.collapsed { width: 44px; padding: 12px 4px; }
+.pane-side.collapsed .pane-side-head h3,
+.pane-side.collapsed .note-list { display: none; }
+.pane-side.collapsed .pane-side-head { justify-content: center; }

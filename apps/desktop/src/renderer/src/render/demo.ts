@@ -4,11 +4,22 @@ import { validateDemoHtml, type ValidationResult } from '@loomnote/core'
 export const DEMO_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:;"
 
 /**
- * 帧内引导脚本：
- *  1) 接收父页 MessageChannel port2（结构化桥接事件）；
- *  2) 主动把内容高度 postMessage 给父页 —— 不依赖握手时序，父页据此自动定高。
+ * The frame's bootstrap, injected ahead of the demo's own markup.
+ *
+ * It reports the frame's height so the parent can size it, hands the parent a
+ * `MessageChannel` port for structured events, and answers two commands:
+ *
+ * - `probe` lists the demo's interactive controls, so the app can tell a demo
+ *   that does something from one that is a picture (check 5 of the proposal's
+ *   test set).
+ * - `click` presses one by index. That is how a demo can be exercised without a
+ *   human — used by the scripted walkthrough, and available to the automated
+ *   "the demo still plays" check.
+ *
+ * Both are ordinary `click()` calls on the demo's own elements, so the demo's
+ * own handler runs exactly as it would for a reader.
  */
-const BRIDGE_BOOT = `<script>(()=>{var report=()=>{try{var b=document.body;var m=0;if(b){var kids=b.children;for(var i=0;i<kids.length;i++){var r=kids[i].getBoundingClientRect();if(r.bottom>m)m=r.bottom}var cs=getComputedStyle(b);m+=parseFloat(cs.paddingBottom)||0;m+=parseFloat(cs.marginBottom)||0}window.parent.postMessage({__loomnote:'resize',height:Math.ceil(m)},'*')}catch(e){}};var raf=0;var queue=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=0;report()})};try{new ResizeObserver(queue).observe(document.documentElement)}catch(e){}window.addEventListener('load',queue);document.addEventListener('click',()=>setTimeout(queue,0));setTimeout(queue,0);setTimeout(queue,80);setTimeout(queue,500);window.addEventListener('message',(e)=>{if(!e.ports||!e.ports[0])return;window.__loomnotePort=e.ports[0];window.__loomnotePort.postMessage({type:'bridge-ready'})})})()</script>`
+const BRIDGE_BOOT = `<script>(()=>{var SEL='button,[role=button],input[type=button],input[type=submit],summary';var controls=()=>{try{return Array.prototype.slice.call(document.querySelectorAll(SEL))}catch(e){return[]}};var report=()=>{try{var b=document.body;var m=0;if(b){var kids=b.children;for(var i=0;i<kids.length;i++){var r=kids[i].getBoundingClientRect();if(r.bottom>m)m=r.bottom}var cs=getComputedStyle(b);m+=parseFloat(cs.paddingBottom)||0;m+=parseFloat(cs.marginBottom)||0}window.parent.postMessage({__loomnote:'resize',height:Math.ceil(m)},'*')}catch(e){}};var raf=0;var queue=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=0;report()})};try{new ResizeObserver(queue).observe(document.documentElement)}catch(e){}window.addEventListener('load',hello);window.addEventListener('load',queue);document.addEventListener('click',()=>setTimeout(queue,0));setTimeout(queue,0);setTimeout(queue,80);setTimeout(queue,500);hello();setTimeout(hello,250);setTimeout(hello,900);var queue=[],say=function(m){try{if(!window.__loomnotePort){queue.push(m);return}window.__loomnotePort.postMessage(m)}catch(e){}};var flush=function(){var q=queue;queue=[];for(var k=0;k<q.length;k++)say(q[k])};var hello=function(){try{window.parent.postMessage({__loomnote:'hello'},'*')}catch(e){}};var onErr=function(e){say({type:'demo-error',message:String((e&&(e.message||e.error))||'script error').slice(0,200)})};window.addEventListener('error',onErr);window.addEventListener('unhandledrejection',function(e){say({type:'demo-error',message:('unhandled rejection: '+String(e&&e.reason)).slice(0,200)})});setTimeout(function(){try{var controls=document.querySelectorAll(SEL).length;var visual=document.querySelectorAll('svg *,canvas,img,table,pre').length;var text=(document.body.innerText||'').trim().length;say({type:'demo-health',message:'ready='+document.readyState+' controls='+controls+' visual='+visual+' text='+text});if(visual===0&&controls===0)say({type:'demo-error',message:'the demo rendered nothing'});}catch(e){say({type:'demo-error',message:'health check failed: '+e})}},1500);window.addEventListener('message',function(e){var d=e.data||{};if(e.ports&&e.ports[0]){window.__loomnotePort=e.ports[0];say({type:'bridge-ready'});flush();return}if(d.__loomnote==='probe'){var els=controls();say({type:'controls',message:String(els.length)+' control(s): '+els.slice(0,4).map(function(el){return String(el.textContent||el.value||el.tagName).trim().slice(0,24)}).join(' | ')});return}if(d.__loomnote==='click'){var list=controls();var el=list[d.index||0];if(!el){say({type:'demo-click',message:'no control at index '+(d.index||0)});return}el.click();setTimeout(queue,0);say({type:'demo-click',message:String(el.textContent||el.value||el.tagName).trim().slice(0,32)})}})})()</script>`
 
 export function buildDemoSrcdoc(html: string): string {
   return `<meta http-equiv="Content-Security-Policy" content="${DEMO_CSP}">${BRIDGE_BOOT}${html}`

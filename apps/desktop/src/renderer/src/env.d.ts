@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import type { LoomnoteApi } from '../../shared/ipc.js'
 
 declare global {

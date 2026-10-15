@@ -1,32 +1,46 @@
 import { create } from 'zustand'
-import type { AgentEvent, Note } from '@loomnote/core'
+import type { Note } from '@loomnote/core'
 import type { HealthInfo, ImportSummary, NoteSummary, Settings } from '../../../shared/ipc.js'
 import { initLang, setLang, t } from '../i18n.js'
+
+/** Storage key for the rail preference; read synchronously so the first frame is right. */
+const SIDEBAR_KEY = 'loomnote.sidebar.collapsed'
+
+function readSidebarPreference(): boolean {
+  try {
+    return localStorage.getItem(SIDEBAR_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 
 interface AppState {
   health: HealthInfo | null
   settings: Settings | null
   notes: NoteSummary[]
   imports: ImportSummary[]
-  /** 结构化事件（不含 delta——delta 聚合进 streamText 防洪泛） */
-  events: AgentEvent[]
-  /** 聚合的流式输出（VCP 式实时文本） */
-  streamText: string
-  busy: boolean
-  runStartedAt: number | null
   error: string | null
-  agentOpen: boolean
+  /** Whether the agent panel is showing. */
+  chatOpen: boolean
+  /** Whether the navigation rail is collapsed to icons. */
+  sidebarCollapsed: boolean
+  /** The note the rest of the app — and the agent — is looking at. */
   activeNote: Note | null
+  /**
+   * The note file's contents as last seen on disk. The agent writes the file,
+   * so this, not `activeNote.bodyMd`, is what the reader should see while a
+   * turn is in flight.
+   */
+  liveBody: string
   refreshAll: () => Promise<void>
   loadSettings: () => Promise<void>
   setLang: (lang: 'zh' | 'en') => Promise<void>
-  pushAgentEvent: (e: AgentEvent) => void
-  clearRun: () => void
-  setBusy: (b: boolean) => void
   setError: (e: string | null) => void
-  clearError: () => void
-  setAgentOpen: (b: boolean) => void
-  setActiveNote: (n: Note | null) => void
+  setChatOpen: (open: boolean) => void
+  toggleSidebar: () => void
+  setActiveNote: (note: Note | null) => void
+  setLiveBody: (body: string) => void
 }
 
 export const useApp = create<AppState>((set, get) => ({
@@ -34,13 +48,11 @@ export const useApp = create<AppState>((set, get) => ({
   settings: null,
   notes: [],
   imports: [],
-  events: [],
-  streamText: '',
-  busy: false,
-  runStartedAt: null,
   error: null,
-  agentOpen: false,
+  chatOpen: false,
+  sidebarCollapsed: readSidebarPreference(),
   activeNote: null,
+  liveBody: '',
 
   async refreshAll() {
     try {
@@ -55,7 +67,7 @@ export const useApp = create<AppState>((set, get) => ({
     try {
       const settings = await window.loomnote.getSettings()
       set({ settings })
-      // 语言：本地偏好优先，其次跟随设置（设置里也存了一份，便于主进程决定笔记语言）
+      // The stored preference wins; settings is the fallback for a first run.
       initLang(settings.lang === 'zh' ? 'zh' : 'en')
     } catch (e) {
       set({ error: e instanceof Error ? e.message : String(e) })
@@ -64,47 +76,36 @@ export const useApp = create<AppState>((set, get) => ({
 
   async setLang(lang) {
     setLang(lang)
-    const cur = get().settings
-    if (cur) {
-      try {
-        const next = await window.loomnote.setSettings({ ...cur, lang })
-        set({ settings: next })
-      } catch (e) {
-        set({ error: e instanceof Error ? e.message : String(e) })
-      }
+    const current = get().settings
+    if (!current) return
+    try {
+      const next = await window.loomnote.setSettings({ ...current, lang })
+      set({ settings: next })
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : String(e) })
     }
   },
 
-  pushAgentEvent(e) {
-    const s = get()
-    if (e.type === 'delta') {
-      // delta 聚合：只更新 streamText，不进事件列表（防洪泛）
-      set({ streamText: (s.streamText + e.text).slice(-4000) })
-      return
-    }
-    if (e.type === 'plan') set({ events: [e], streamText: '' })
-    else set({ events: [...s.events.slice(-99), e] })
-    if (e.type === 'done' || e.type === 'error') set({ runStartedAt: null })
-  },
-
-  clearRun() {
-    set({ events: [], streamText: '' })
-  },
-
-  setBusy(b) {
-    set({ busy: b, runStartedAt: b ? Date.now() : get().runStartedAt })
-  },
   setError(e) {
     set({ error: e })
   },
-  clearError() {
-    set({ error: null })
+  setChatOpen(open) {
+    set({ chatOpen: open })
   },
-  setAgentOpen(b) {
-    set({ agentOpen: b })
+  toggleSidebar() {
+    const collapsed = !get().sidebarCollapsed
+    set({ sidebarCollapsed: collapsed })
+    try {
+      localStorage.setItem(SIDEBAR_KEY, collapsed ? '1' : '0')
+    } catch {
+      /* private mode: the in-memory value is enough */
+    }
   },
-  setActiveNote(n) {
-    set({ activeNote: n })
+  setActiveNote(note) {
+    set({ activeNote: note })
+  },
+  setLiveBody(body) {
+    set({ liveBody: body })
   }
 }))
 
