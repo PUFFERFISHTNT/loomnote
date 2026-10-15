@@ -46,7 +46,11 @@ export function openDatabase(userDataDir: string): AppDb {
   try {
     return new SqliteAppDb(SQLite, file)
   } catch (e) {
-    console.error('[db] sqlite open failed, falling back to json', e)
+    // A missing native binding is expected on a fresh clone, and the JSON store
+    // is a supported fallback — so this is one line, not a twelve-line stack.
+    // Set LOOMNOTE_DB_DEBUG=1 to see the loader's full search path.
+    if (process.env['LOOMNOTE_DB_DEBUG']) console.error('[db] sqlite open failed', e)
+    else console.warn(`[db] sqlite binding unavailable (${e instanceof Error ? e.message.split('\n')[0] : String(e)}); using the JSON store`)
     return new JsonAppDb(file)
   }
 }

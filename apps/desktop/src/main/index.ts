@@ -30,6 +30,13 @@ const demoArg = process.argv.find((a) => a.startsWith('--demo='))
 const demoSep = demoArg ? demoArg.indexOf('|', '--demo='.length) : -1
 const demoPdf = demoArg && demoSep > 0 ? demoArg.slice('--demo='.length, demoSep) : null
 const demoRequest = demoArg && demoSep > 0 ? demoArg.slice(demoSep + 1) : null
+/**
+ * `--tour=demo` replays only the closing demonstration against an existing
+ * note, so a take whose ending is wrong can be completed with a short second
+ * recording instead of re-running the whole pipeline.
+ */
+const tourArg = process.argv.find((a) => a.startsWith('--tour='))
+const tourOnly = tourArg ? tourArg.slice('--tour='.length) : null
 // 截图模式：--screenshot=<route>:<输出png>（UI 视觉审核用，modlens 审图闭环）
 const shotArg = process.argv.find((a) => a.startsWith('--screenshot='))
 const shotParts = shotArg ? shotArg.slice('--screenshot='.length).split(':') : null
@@ -293,6 +300,40 @@ async function typeAndSend(win: BrowserWindow, request: string): Promise<void> {
  * through the sandbox bridge — the frame's own element handlers fire, which is
  * what a reader's click does too.
  */
+async function runDemoTour(win: BrowserWindow): Promise<void> {
+  const run = (script: string): Promise<unknown> => win.webContents.executeJavaScript(script, true).catch(() => undefined)
+  const hold = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+  const click = (selector: string): Promise<unknown> => run(`document.querySelector(${JSON.stringify(selector)})?.click()`)
+  const tab = (label: string): Promise<unknown> =>
+    run(`[...document.querySelectorAll('.tabs button')].find((b) => new RegExp(${JSON.stringify(label)}).test(b.textContent || ''))?.click()`)
+
+  // Fold every rail away first, so the demo gets the whole window.
+  await click('.side-collapse')
+  await hold(600)
+  await click('.pane-collapse')
+  await hold(600)
+  await click('.agent-head .icon-btn')
+  await hold(1600)
+
+  await tab('Demo|演示')
+  await hold(2600)
+  const hasFrame = (await run(`document.querySelector('.demo-pane iframe, .demo-card iframe') ? 'yes' : 'no'`)) as string
+  if (hasFrame !== 'yes') {
+    console.log('[demo] no demo frame to tour')
+    return
+  }
+  await run(`(() => { const f = document.querySelector('.demo-pane iframe, .demo-card iframe'); f.contentWindow.postMessage({ __loomnote: 'probe' }, '*'); return true })()`)
+  await hold(1400)
+  for (let press = 0; press < 7; press += 1) {
+    await run(
+      `(() => { const f = document.querySelector('.demo-pane iframe, .demo-card iframe'); f.contentWindow.postMessage({ __loomnote: 'click', match: 'next|forward|▶|step|advance' }, '*'); return true })()`
+    )
+    await hold(1500)
+  }
+  await hold(2200)
+  console.log(`[demo] mark tour-done ${Date.now()}`)
+}
+
 async function runTour(win: BrowserWindow): Promise<void> {
   // Each step is best-effort: a selector that no longer exists must not abort
   // the rest of the walkthrough.
@@ -334,29 +375,31 @@ async function runTour(win: BrowserWindow): Promise<void> {
     await run(`document.querySelector('.split-right [data-demo-idx]')?.scrollIntoView({ block: 'center' })`)
     await hold(9000)
 
-    // 3. The interactive demo, driven through the sandbox bridge.
+    // 3. Fold the agent panel away too. Every rail is gone now, so the demo
+    //    gets the whole window for the rest of the clip.
+    await click('.agent-head .icon-btn')
+    await hold(2000)
+
+    // 4. The interactive demo, last and alone. Its own steps are the animation,
+    //    and the clip ends on the reader pressing them.
     await tab('Demo|演示')
-    await hold(2400)
+    await hold(2600)
     const hasFrame = (await run(`document.querySelector('.demo-pane iframe, .demo-card iframe') ? 'yes' : 'no'`)) as string
     if (hasFrame !== 'yes') {
       console.log('[demo] no demo frame to tour')
     } else {
       await run(`(() => { const f = document.querySelector('.demo-pane iframe, .demo-card iframe'); f.contentWindow.postMessage({ __loomnote: 'probe' }, '*'); return true })()`)
       await hold(1400)
-      for (let index = 0; index < 4; index += 1) {
+      // Press the demo's own advance control at a steady beat: its steps then
+      // read as the animation they are, rather than as one before-and-after pair.
+      for (let press = 0; press < 7; press += 1) {
         await run(
-          `(() => { const f = document.querySelector('.demo-pane iframe, .demo-card iframe'); f.contentWindow.postMessage({ __loomnote: 'click', index: ${index} }, '*'); return true })()`
+          `(() => { const f = document.querySelector('.demo-pane iframe, .demo-card iframe'); f.contentWindow.postMessage({ __loomnote: 'click', match: 'next|forward|▶|step|advance' }, '*'); return true })()`
         )
-        await hold(index === 0 ? 2400 : 2000)
+        await hold(1500)
       }
+      await hold(2200)
     }
-    // 4. Back to the pair view with the agent panel folded away as well, so the
-    //    deck and the note have the whole window — the state a reader works in.
-    //    The left rails were already folded before the request was typed.
-    await tab('Slides\\+note|原稿\\+笔记')
-    await hold(1200)
-    await click('.agent-head .icon-btn')
-    await hold(5200)
 
     console.log(`[demo] mark tour-done ${Date.now()}`)
   } catch (error) {
@@ -479,8 +522,12 @@ if (!gotLock) {
     })
 
     seedDemoNoteForScreenshot()
-    mainWindow = createWindow(shotRoute || (demoPdf ? '/notes' : undefined))
+    mainWindow = createWindow(shotRoute || (demoPdf || tourOnly ? '/notes' : undefined))
     if (demoPdf && demoRequest) runScriptedWalkthrough(demoPdf, demoRequest)
+    if (tourOnly === 'demo') {
+      const win = mainWindow
+      setTimeout(() => void runDemoTour(win).catch((e: unknown) => console.error('[demo] tour failed', e)), 1500)
+    }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()

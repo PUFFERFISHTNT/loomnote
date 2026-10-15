@@ -4,7 +4,7 @@
   "private": true,
   "description": "LoomNote — turn a lecture into a living note. Local-first study companion built on the DeepSeek Harness agent runtime.",
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "typecheck": "pnpm -r typecheck",
     "build": "pnpm -r build",

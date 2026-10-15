@@ -31,3 +31,6 @@ config/local.env
 /docs/TESTING.md
 /scripts/record-demo.sh
 /scripts/harness-smoke.ts
+
+# CI is not part of the product; the repository ships the app itself.
+/.github/

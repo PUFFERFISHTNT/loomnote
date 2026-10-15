@@ -14,6 +14,7 @@ import type { HarnessOption, HarnessStatus } from '@loomnote/harness'
 import { useApp } from '../stores/app.js'
 import { useChat, type ChatItem } from '../stores/chat.js'
 import { locale, t, useLang } from '../i18n.js'
+import { renderMarkdown } from '../render/markdown.js'
 
 /** How the student wants the next message treated. */
 type Mode = 'auto' | 'edit' | 'explain'
@@ -24,6 +25,15 @@ function statusTone(status: HarnessStatus): string {
   if (status === 'error') return 'err'
   if (status === 'idle' || status === 'ready') return 'ok'
   return 'gray'
+}
+
+/** Assistant replies are Markdown; the reader should not see the asterisks. */
+function renderChatMarkdown(text: string): string {
+  try {
+    return renderMarkdown(text).html
+  } catch {
+    return text.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c] ?? c)
+  }
 }
 
 export function ChatPanel() {
@@ -220,7 +230,7 @@ function Item({ item, onChoose, disabled }: { item: ChatItem; onChoose: (option:
       return (
         <div className="chat-answer">
           {item.thinking.length > 0 && <Thinking text={item.thinking} />}
-          <div className="chat-answer-text">{item.text}</div>
+          <div className="chat-answer-text" dangerouslySetInnerHTML={{ __html: renderChatMarkdown(item.text) }} />
           <span className="chat-time">{time}</span>
         </div>
       )
