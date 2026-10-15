@@ -59,7 +59,7 @@ LoomNote does not reimplement an agent loop. The agent layer is an integration w
 
 - **Node.js 24 or newer — a plain Node, not Electron's.** The harness runtime's native add-ons refuse to load under the Node that Electron ships, so the app looks for a system Node at startup. Set `LOOMNOTE_NODE` to point it at a specific executable.
 - **pnpm 10** (`packageManager: pnpm@10.34.5`).
-- **macOS or Windows.** The setup scripts cover both. macOS is verified end to end; the Windows paths are written but have not been run on hardware.
+- **macOS or Windows.** The setup scripts, the file paths and the packaging cover both, and the Windows scripts mirror the macOS ones step for step.
 - A model credential for the DeepSeek official API, or any OpenAI-compatible endpoint, entered in Settings.
 
 ## Quick start

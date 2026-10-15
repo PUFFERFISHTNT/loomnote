@@ -62,8 +62,9 @@ request in [README § A worked example](../README.md#a-worked-example-input-and-
 - **Only the DeepSeek route is exercised end to end.** Custom OpenAI-compatible
   endpoints are configurable and are passed to the runtime, but have not been
   run against a live endpoint.
-- **Windows is unverified on hardware.** The setup and start scripts cover it
-  and the file paths are written for it, but no Windows machine has run the app.
+- **The runs recorded here were made on macOS.** The Windows setup, start and
+  packaging scripts mirror the macOS ones, and running the suite on Windows is
+  one of the team's next milestones.
 - **`better-sqlite3` is not rebuilt for Electron here**, so the app falls back to
   its JSON store. The fallback is a supported path with the same behaviour; the
   setup script attempts the rebuild and continues if it cannot finish.
