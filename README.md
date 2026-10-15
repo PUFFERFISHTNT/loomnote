@@ -58,8 +58,8 @@ LoomNote does not reimplement an agent loop. The agent layer is an integration w
 ## Requirements
 
 - **Node.js 24 or newer — a plain Node, not Electron's.** The harness runtime's native add-ons refuse to load under the Node that Electron ships, so the app looks for a system Node at startup. Set `LOOMNOTE_NODE` to point it at a specific executable.
-- **pnpm 10** (`packageManager: pnpm@10.34.5`).
-- **macOS or Windows.** The setup scripts, the file paths and the packaging cover both, and the Windows scripts mirror the macOS ones step for step.
+- **pnpm 10** (`packageManager: pnpm@10.34.5`). On Windows you do not have to install it: `setup.ps1` installs it for the current user when it is missing.
+- **macOS or Windows.** The setup scripts, the file paths and the packaging cover both. On Windows, `setup.ps1` and `start.ps1` handle the two things that are specific to that platform — pnpm's non-interactive install and the native SQLite module's Electron ABI; [docs/SETUP-WINDOWS.md](docs/SETUP-WINDOWS.md) has the details.
 - A model credential for the DeepSeek official API, or any OpenAI-compatible endpoint, entered in Settings.
 
 ## Quick start
@@ -78,6 +78,8 @@ pnpm build
 ```
 
 `start.sh` / `start.ps1` load `config/local.env` when it exists, build the app on first run, and then launch Electron from a real terminal — which is also what keeps a host-injected `ELECTRON_RUN_AS_NODE` out of the app's environment. Use `pnpm dev` for the hot-reloading development build.
+
+On Windows, `setup.ps1` also installs pnpm if it is missing, and compiles the SQLite native module for Electron's ABI when the prebuilt one does not fit. Both scripts refresh `PATH` from the registry first, so a double-clicked window still finds a freshly installed Node.js, and both are safe to re-run. If PowerShell blocks them, unblock the checkout once with `Unblock-File .\scripts\*.ps1`.
 
 ## A worked example: input, and what to expect
 
