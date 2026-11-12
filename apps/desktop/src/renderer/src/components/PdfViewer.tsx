@@ -45,8 +45,10 @@ export function PdfViewer({ noteId, relPath, page, onPageCount }: PdfViewerProps
 
   useEffect(() => {
     let cancelled = false
+    let openedDoc: OpenPdf | null = null
     setDoc(null)
     setError(null)
+    setCurrent(page ?? 1)
     void window.loomnote
       .noteReadAsset(noteId, relPath)
       .then((bytes) => openPdf(bytes))
@@ -56,11 +58,14 @@ export function PdfViewer({ noteId, relPath, page, onPageCount }: PdfViewerProps
           return
         }
         setDoc(opened)
+        openedDoc = opened
+        setCurrent((n) => Math.min(opened.numPages, Math.max(1, n)))
         onPageCount?.(opened.numPages)
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e: unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)) })
     return () => {
       cancelled = true
+      void openedDoc?.release()
     }
     // `onPageCount` is intentionally not a dependency: callers pass a fresh
     // closure each render, and re-opening the document on every render would be
@@ -69,7 +74,7 @@ export function PdfViewer({ noteId, relPath, page, onPageCount }: PdfViewerProps
   }, [noteId, relPath])
 
   useEffect(() => {
-    if (page && page !== current) setCurrent(page)
+    if (page && page !== current) setCurrent(Math.max(1, doc ? Math.min(doc.numPages, page) : page))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page])
 

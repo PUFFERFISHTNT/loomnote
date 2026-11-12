@@ -1,5 +1,5 @@
 import type { HarnessEvent } from '@loomnote/harness'
-import type { ImportRecord, Note } from '@loomnote/core'
+import type { ImportRecord, Note, MergeChange, ReviewCard, ReviewRating, NoteGraph } from '@loomnote/core'
 
 export type { HarnessEvent } from '@loomnote/harness'
 
@@ -7,12 +7,25 @@ export const IPC = {
   health: 'app:health',
   listImports: 'import:list',
   pickImport: 'import:pick',
+  pickImports: 'import:pickMany',
   addImportMd: 'import:addMd',
   listNotes: 'note:list',
   getNote: 'note:get',
   saveNote: 'note:save',
   getSettings: 'settings:get',
   setSettings: 'settings:set',
+  testProvider: 'settings:testProvider',
+  reviewList: 'review:list',
+  reviewRate: 'review:rate',
+  noteGraph: 'note:graph',
+  mergePrepare: 'note:mergePrepare',
+  mergeApply: 'note:mergeApply',
+  noteSources: 'note:sources',
+  openSample: 'note:openSample',
+  setNoteCourse: 'note:setCourse',
+  listCourses: 'course:list',
+  createCourse: 'course:create',
+  updateCourse: 'course:update',
   /** Ask a note's harness session to work on a request. */
   chatSend: 'chat:send',
   /** Stop a note's harness session. */
@@ -52,6 +65,8 @@ export interface Settings {
   webEnabled: boolean
   /** 界面语言；同时决定 AI 生成笔记的书写语言 */
   lang: Lang
+  /** Explicit, editable preferences applied to every subsequent request. */
+  studyPreferences?: string
 }
 
 export type Lang = 'zh' | 'en'
@@ -80,13 +95,14 @@ export const PRESET_PROVIDERS: ProviderConfig[] = [
 export const DEFAULT_SETTINGS: Settings = {
   providers: PRESET_PROVIDERS.map((p) => ({ ...p })),
   activeProviderId: 'deepseek-official',
-  webEnabled: true,
-  lang: 'en'
+  webEnabled: false,
+  lang: 'en',
+  studyPreferences: ''
 }
 
 /** 旧版单接口设置迁移为新版多接口结构 */
 export function migrateSettings(raw: unknown): Settings {
-  if (isSettings(raw)) return raw
+  if (isSettings(raw)) return { ...raw, lang: raw.lang === 'zh' ? 'zh' : 'en', studyPreferences: raw.studyPreferences ?? '' }
   const o = (raw ?? {}) as Record<string, unknown>
   const baseURL = typeof o.baseURL === 'string' && o.baseURL ? o.baseURL : ''
   const isDeepSeek = baseURL.toLowerCase().includes('deepseek')
@@ -105,7 +121,8 @@ export function migrateSettings(raw: unknown): Settings {
     providers: [provider],
     activeProviderId: provider.id,
     webEnabled: o.webEnabled !== false,
-    lang: o.lang === 'zh' || o.lang === 'en' ? (o.lang as Lang) : 'en'
+    lang: o.lang === 'zh' || o.lang === 'en' ? (o.lang as Lang) : 'en',
+    studyPreferences: ''
   }
 }
 
@@ -120,6 +137,14 @@ export interface NoteSummary {
   id: string
   title: string
   updatedAt: number
+  course?: string
+}
+
+export interface Course {
+  id: string
+  name: string
+  archived: boolean
+  createdAt: number
 }
 
 export interface ImportSummary {
@@ -147,9 +172,24 @@ export interface NoteSourceInfo {
   /** Original file name. */
   name: string
   /** `pdf` decks get a slide view; anything else is offered as a download. */
-  kind: 'pdf' | 'other'
+  kind: 'pdf' | 'image' | 'other'
   /** Page images already rendered into the note folder, 1-based. */
   pages: number[]
+  relPath: string
+  pagesPath: string
+}
+
+export interface MergeProposal {
+  id: string
+  noteId: string
+  sourceName: string
+  baseBody: string
+  changes: MergeChange[]
+}
+export interface ProviderTestResult {
+  ok: boolean
+  message: string
+  latencyMs: number
 }
 
 /** Lifecycle state of one live session. */
@@ -165,12 +205,25 @@ export interface LoomnoteApi {
   health(): Promise<HealthInfo>
   listImports(): Promise<ImportSummary[]>
   pickImport(): Promise<string | null>
-  addImportMd(path: string): Promise<ImportRecord>
+  pickImports(): Promise<string[]>
+  addImportMd(path: string, course?: string): Promise<ImportRecord>
   listNotes(): Promise<NoteSummary[]>
   getNote(id: string): Promise<Note | undefined>
   saveNote(note: Note): Promise<Note>
   getSettings(): Promise<Settings>
   setSettings(s: Settings): Promise<Settings>
+  testProvider(provider: ProviderConfig): Promise<ProviderTestResult>
+  reviewList(): Promise<ReviewCard[]>
+  reviewRate(id: string, rating: ReviewRating): Promise<ReviewCard>
+  noteGraph(): Promise<NoteGraph>
+  mergePrepare(noteId: string, filePath: string): Promise<MergeProposal>
+  mergeApply(noteId: string, proposalId: string, selected: string[]): Promise<Note>
+  noteSources(noteId: string): Promise<NoteSourceInfo[]>
+  openSample(): Promise<Note>
+  setNoteCourse(noteId: string, course: string): Promise<Note>
+  listCourses(): Promise<Course[]>
+  createCourse(name: string): Promise<Course>
+  updateCourse(id: string, name: string, archived: boolean): Promise<Course>
   /** Send a request to a note's agent session; resolves with the durable receipt. */
   chatSend(noteId: string, text: string): Promise<{ messageId: string }>
   /** Stop a note's agent session. */
@@ -214,6 +267,18 @@ export function isSettings(v: unknown): v is Settings {
         typeof p === 'object' && p !== null && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.baseURL === 'string' && typeof p.apiKey === 'string' && typeof p.model === 'string' && typeof p.maxTokens === 'number'
     ) &&
     typeof s.activeProviderId === 'string' &&
-    typeof s.webEnabled === 'boolean'
+    typeof s.webEnabled === 'boolean' &&
+    (s.studyPreferences === undefined || (typeof s.studyPreferences === 'string' && s.studyPreferences.length <= 8000)) &&
+    new Set(s.providers.map((p) => p.id)).size === s.providers.length &&
+    s.providers.some((p) => p.id === s.activeProviderId) &&
+    s.providers.every((p) => isProviderConfig(p))
   )
+}
+
+export function isProviderConfig(v: unknown): v is ProviderConfig {
+  const p = v as Partial<ProviderConfig> | null
+  if (!p || typeof p !== 'object' || typeof p.id !== 'string' || !p.id || typeof p.name !== 'string' ||
+      typeof p.apiKey !== 'string' || typeof p.model !== 'string' || !p.model.trim() ||
+      typeof p.maxTokens !== 'number' || !Number.isSafeInteger(p.maxTokens) || p.maxTokens <= 0 || typeof p.baseURL !== 'string') return false
+  try { const url = new URL(p.baseURL); return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password && !url.search && !url.hash } catch { return false }
 }

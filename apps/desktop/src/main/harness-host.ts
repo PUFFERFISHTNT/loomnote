@@ -17,6 +17,7 @@ import { getActiveProvider, type Settings } from '../shared/ipc.js'
 import type { AppDb } from './db.js'
 import type { NoteWorkspace } from './workspace.js'
 import { extractDemoBlocks, verifyDemo } from './demo-verify.js'
+import { createStudyService } from './study.js'
 
 /** Route name used when the student configured a non-DeepSeek endpoint. */
 export const CUSTOM_ROUTE = 'loomnote-active'
@@ -64,7 +65,8 @@ const PERSIST_DEBOUNCE_MS = 900
  */
 export function isDeepSeekEndpoint(baseURL: string): boolean {
   try {
-    return new URL(baseURL).hostname.endsWith('deepseek.com')
+    const host = new URL(baseURL).hostname
+    return host === 'deepseek.com' || host === 'api.deepseek.com'
   } catch {
     return false
   }
@@ -134,6 +136,9 @@ export function createChatHost(deps: ChatHostDeps): ChatHost {
   const statuses = new Map<string, HarnessStatus>()
   const persistTimers = new Map<string, NodeJS.Timeout>()
   const lastPersisted = new Map<string, string>()
+  const starts = new Map<string, Promise<HarnessSession>>()
+  const configurations = new Map<string, string>()
+  const study = createStudyService(deps.db)
 
   /**
    * How many repair rounds a note has had since its last passing check.
@@ -251,7 +256,7 @@ export function createChatHost(deps: ChatHostDeps): ChatHost {
     await deps.workspace.ensure(noteId, note.bodyMd)
 
     const session = new HarnessSession({
-      dshHome: deps.dshHome,
+      dshHome: path.join(deps.dshHome, noteId.replace(/[^A-Za-z0-9_-]/g, '_')),
       workspaceDir: deps.workspace.dirFor(noteId),
       provider: route.provider,
       model: route.model,
@@ -263,6 +268,7 @@ export function createChatHost(deps: ChatHostDeps): ChatHost {
       onEvent: (event) => emit(noteId, event)
     })
     sessions.set(noteId, session)
+    configurations.set(noteId, JSON.stringify([settings.providers, settings.activeProviderId, settings.lang, settings.webEnabled]))
 
     // Stream the note file as the agent edits it, and keep the durable copy fresh.
     unwatchers.get(noteId)?.()
@@ -293,13 +299,39 @@ export function createChatHost(deps: ChatHostDeps): ChatHost {
     async send(noteId, text) {
       // A new instruction from the student starts a fresh repair budget.
       repairRounds.delete(noteId)
-      const session = await sessionFor(noteId)
-      return session.prompt(text)
+      const settings = deps.getSettings()
+      const provider = getActiveProvider(settings)
+      const url = new URL(provider.baseURL)
+      if (!provider.apiKey.trim() && !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) {
+        throw new Error(settings.lang === 'zh' ? '请先在设置里填写模型密钥；已有笔记和演示仍可离线使用。' : 'Add a model API key in Settings to write new notes. Existing notes and demos remain available offline.')
+      }
+      const fingerprint = JSON.stringify([settings.providers, settings.activeProviderId, settings.lang, settings.webEnabled])
+      if (sessions.has(noteId) && configurations.get(noteId) !== fingerprint) {
+        if (['starting', 'running'].includes(statuses.get(noteId) ?? '')) throw new Error('Stop the current turn before applying the changed model settings.')
+        await this.stop(noteId)
+      }
+      let pending = starts.get(noteId)
+      if (!pending) {
+        pending = sessionFor(noteId)
+        starts.set(noteId, pending)
+      }
+      let session: HarnessSession
+      try { session = await pending } finally { if (starts.get(noteId) === pending) starts.delete(noteId) }
+      if (sessions.get(noteId) !== session) throw new Error('The session was stopped. Send the request again to start a new turn.')
+      const sources = await deps.workspace.listSources(noteId)
+      const context = [
+        settings.studyPreferences?.trim() ? `Saved student preferences (apply to this request):\n${settings.studyPreferences}` : '',
+        study.context(noteId),
+        sources.length ? `Available lecture sources (use the corresponding extracted.md and pages/ for each lecture; image sources require read_image):\n${sources.map((s) => `- ${s.relPath} (${s.kind}); page images: ${s.pagesPath}/pNNN.png`).join('\n')}` : ''
+      ].filter(Boolean).join('\n\n')
+      return session.prompt(context ? `[Study context]\n${context}\n[/Study context]\n\nStudent request:\n${text}` : text)
     },
 
     async stop(noteId) {
       const session = sessions.get(noteId)
       sessions.delete(noteId)
+      starts.delete(noteId)
+      configurations.delete(noteId)
       unwatchers.get(noteId)?.()
       unwatchers.delete(noteId)
       const timer = persistTimers.get(noteId)
@@ -307,12 +339,12 @@ export function createChatHost(deps: ChatHostDeps): ChatHost {
         clearTimeout(timer)
         persistTimers.delete(noteId)
       }
-      const body = await deps.workspace.read(noteId)
-      if (body) {
+      await session?.stop()
+      if (session) {
+        const body = await deps.workspace.read(noteId)
         const note = deps.db.getNote(noteId)
         if (note && note.bodyMd !== body) deps.db.saveNote({ ...note, bodyMd: body, updatedAt: Date.now() })
       }
-      await session?.stop()
       statuses.set(noteId, 'stopped')
     },
 

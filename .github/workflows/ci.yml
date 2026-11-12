@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+# 双端矩阵：macOS + Windows。国内镜像（.npmrc）仅用于本机开发；
+# GitHub runner 上必须用官方源，避免国外节点访问 npmmirror 抖动。
+env:
+  NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+  ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+
+jobs:
+  build:
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        # 版本自动读取 package.json 的 packageManager 字段
+        with:
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm -r typecheck
+      - name: Offline tests
+        run: pnpm test
+      - name: Native module load smoke (better-sqlite3 + electron)
+        working-directory: apps/desktop
+        run: |
+          node -e "try{const {createRequire}=require('module');const req=createRequire(process.cwd()+'/package.json');const D=req('better-sqlite3');const db=new D(':memory:');db.pragma('journal_mode = WAL');db.exec('create table t(a)');db.prepare('insert into t values (?)').run(1);console.log('sqlite smoke OK',db.prepare('select a from t').get().a)}catch(e){console.log('sqlite binding unavailable in this env (app falls back to JSON):',e.message.split('\n')[0])}"
+          pnpm build
+      - name: Desktop workflow and restart persistence
+        run: pnpm test:desktop
+        env:
+          LOOMNOTE_ARTIFACTS_DIR: artifacts/desktop
+      - name: Windows PowerShell syntax
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          foreach ($file in @('scripts/setup.ps1', 'scripts/start.ps1')) {
+            $parseErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file), [ref]$null, [ref]$parseErrors) | Out-Null
+            if ($parseErrors.Count -gt 0) { $parseErrors | Format-List; exit 1 }
+          }
+      - name: Upload desktop evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-evidence-${{ matrix.os }}
+          path: artifacts/desktop
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: loomnote-dev-${{ matrix.os }}
+          path: apps/desktop/out
+          if-no-files-found: error

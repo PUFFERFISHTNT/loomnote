@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import DOMPurify from 'dompurify'
 import type { Note } from '@loomnote/core'
-import type { NoteSourceInfo } from '../../../shared/ipc.js'
+import type { MergeProposal, NoteSourceInfo } from '../../../shared/ipc.js'
 import { renderMarkdown, hydrateMarkdown } from '../render/markdown.js'
 import { exportPages } from '../render/pages.js'
 import { DemoSandbox } from '../components/DemoSandbox.js'
 import { PdfViewer } from '../components/PdfViewer.js'
+import { MergeReview } from '../components/MergeReview.js'
 import { noteSummaryTime, useApp } from '../stores/app.js'
 import { useChat } from '../stores/chat.js'
 import { t, useLang } from '../i18n.js'
@@ -32,6 +35,17 @@ export function Notes() {
   const [currentId, setCurrentId] = useState<string | null>(null)
   const [note, setNote] = useState<Note | null>(null)
   const [source, setSource] = useState<NoteSourceInfo | null>(null)
+  const [sources, setSources] = useState<NoteSourceInfo[]>([])
+  const [proposal, setProposal] = useState<MergeProposal | null>(null)
+  const [merging, setMerging] = useState(false)
+  const [search, setSearch] = useState('')
+  const [courseDraft, setCourseDraft] = useState('')
+  const [courseFilter, setCourseFilter] = useState('*')
+  const { id: routeId } = useParams()
+  const [params] = useSearchParams()
+  const navigate = useNavigate()
+  const requestedPage = Number(params.get('page')) || undefined
+  useEffect(() => { setCourseFilter(params.get('course') ?? '*') }, [params])
   const [pageProgress, setPageProgress] = useState<{ done: number; total: number } | null>(null)
   const [mode, setMode] = useState<Mode>('body')
   const [draft, setDraft] = useState('')
@@ -39,7 +53,7 @@ export function Notes() {
   const [listOpen, setListOpen] = useState(() => readListPreference())
   const bodyRef = useRef<HTMLDivElement>(null)
   const inlineRoots = useRef<Array<{ root: ReturnType<typeof createRoot> }>>([])
-  useLang()
+  const zh = useLang() === 'zh'
 
   useEffect(() => {
     void useApp.getState().refreshAll()
@@ -47,27 +61,37 @@ export function Notes() {
 
   // A single note selects itself, so a first-time reader lands on content.
   useEffect(() => {
-    if (!currentId && notes.length === 1) setCurrentId(notes[0]!.id)
-  }, [notes, currentId])
+    if (routeId) {
+      const found = notes.find((n) => n.id === routeId) ?? notes.find((n) => n.title.toLowerCase() === routeId.toLowerCase())
+      if (found) setCurrentId(found.id)
+    } else if (!currentId && notes.length === 1) setCurrentId(notes[0]!.id)
+  }, [notes, currentId, routeId])
 
   useEffect(() => {
     if (!currentId) return
     let cancelled = false
+    setSource(null)
+    setSources([])
+    setProposal(null)
+    setNote(null)
     void window.loomnote.getNote(currentId).then(async (loaded) => {
       if (!loaded || cancelled) return
       setNote(loaded)
+      setCourseDraft(typeof loaded.frontMatter.course === 'string' ? loaded.frontMatter.course : '')
       setDraft(loaded.bodyMd)
       setDirty(false)
       useApp.getState().setActiveNote(loaded)
       useApp.getState().setLiveBody(loaded.bodyMd)
 
-      const found = await window.loomnote.noteSource(loaded.id)
+      const allSources = await window.loomnote.noteSources(loaded.id)
+      const found = allSources[0] ?? null
       if (cancelled) return
       setSource(found)
+      setSources(allSources)
       // A fresh import has not been organised yet: show the deck the student
       // actually handed in rather than the text we scraped out of it.
-      setMode(found?.kind === 'pdf' && loaded.status === 'draft' ? 'slides' : found?.kind === 'pdf' ? 'split' : 'body')
-    })
+      setMode(found?.kind === 'pdf' && requestedPage ? 'split' : found?.kind === 'pdf' && loaded.status === 'draft' ? 'slides' : found?.kind === 'pdf' ? 'split' : 'body')
+    }).catch((e: unknown) => { if (!cancelled) useApp.getState().setError(String(e)) })
     return () => {
       cancelled = true
     }
@@ -81,7 +105,8 @@ export function Notes() {
     setPageProgress({ done: source.pages.length, total: 0 })
     void exportPages({
       noteId: currentId,
-      relPath: `source/${source.name}`,
+      relPath: source.relPath,
+      pagesPath: source.pagesPath,
       existing: source.pages,
       signal: controller.signal,
       onProgress: (progress) => setPageProgress(progress)
@@ -101,13 +126,14 @@ export function Notes() {
   const assetBase = currentId ? assetBaseFor(currentId) : ''
 
   /** What the reader sees: the file on disk when we have it, else the saved row. */
-  const body = useMemo(() => (activeNote && note && activeNote.id === note.id ? liveBody || note.bodyMd : note?.bodyMd ?? ''), [activeNote, note, liveBody])
+  const body = useMemo(() => (activeNote && note && activeNote.id === note.id ? liveBody : note?.bodyMd ?? ''), [activeNote, note, liveBody])
+  useEffect(() => { if (!dirty) setDraft(body) }, [body, dirty])
   const editing = running && (liveBody || '').length > 0
 
   useEffect(() => {
     if ((mode !== 'body' && mode !== 'split') || !bodyRef.current || !note) return
     const { html, demos } = renderMarkdown(body, { assetBase })
-    bodyRef.current.innerHTML = html
+    bodyRef.current.innerHTML = DOMPurify.sanitize(html)
     void hydrateMarkdown(bodyRef.current).catch(() => undefined)
     inlineRoots.current.forEach((r) => r.root.unmount())
     inlineRoots.current = []
@@ -128,6 +154,7 @@ export function Notes() {
 
   async function save(): Promise<void> {
     if (!note) return
+    try {
     await window.loomnote.noteWrite(note.id, draft)
     const updated: Note = { ...note, bodyMd: draft, updatedAt: Date.now() }
     setNote(updated)
@@ -135,6 +162,16 @@ export function Notes() {
     useApp.getState().setLiveBody(draft)
     setDirty(false)
     await useApp.getState().refreshAll()
+    } catch (e) { useApp.getState().setError(String(e)) }
+  }
+
+  async function mergeLecture() {
+    if (!note || merging || dirty || running) return
+    setMerging(true)
+    try {
+      const file = await window.loomnote.pickImport()
+      if (file) setProposal(await window.loomnote.mergePrepare(note.id, file))
+    } catch (e) { useApp.getState().setError(String(e)) } finally { setMerging(false) }
   }
 
   const hasSlides = source?.kind === 'pdf'
@@ -164,9 +201,11 @@ export function Notes() {
             {listOpen ? '«' : '»'}
           </button>
         </div>
+        {listOpen && <input className="study-search" aria-label={zh ? '搜索笔记' : 'Search notes'} placeholder={zh ? '搜索笔记…' : 'Search notes…'} value={search} onChange={(e) => setSearch(e.target.value)} />}
+        {listOpen && <select className="course-filter" aria-label={zh ? '课程文件夹' : 'Course folder'} value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)}><option value="*">{zh ? '全部课程' : 'All courses'}</option><option value="">{zh ? '未分类' : 'Unsorted'}</option>{[...new Set(notes.map((n) => n.course).filter(Boolean))].sort().map((course) => <option key={course} value={course}>📁 {course}</option>)}</select>}
         <ul className="note-list">
-          {notes.map((n) => (
-            <li key={n.id} className={n.id === currentId ? 'active' : ''} onClick={() => setCurrentId(n.id)}>
+          {notes.filter((n) => (courseFilter === '*' || (n.course ?? '') === courseFilter) && n.title.toLowerCase().includes(search.toLowerCase())).map((n) => (
+            <li key={n.id} className={n.id === currentId ? 'active' : ''} onClick={() => { if (!dirty) navigate(`/notes/${encodeURIComponent(n.id)}`); else useApp.getState().setError(zh ? '请先保存或撤销修改。' : 'Save or revert your edits before switching notes.') }}>
               <span>📄</span>
               <span className="t">
                 <b>{n.title}</b>
@@ -223,10 +262,17 @@ export function Notes() {
                   {t('notes.tab.source')}
                 </button>
               </div>
-              <button className="btn primary" disabled={running} onClick={() => useApp.getState().setChatOpen(!chatOpen)}>
+              <button className="btn" disabled={running || dirty || merging} onClick={() => void mergeLecture()}>{merging ? '…' : (zh ? '合并讲义' : 'Merge lecture')}</button>
+              <button className="btn primary" onClick={() => useApp.getState().setChatOpen(!chatOpen)}>
                 ✳ {running ? t('notes.agent.running') : t('notes.agent.open')}
               </button>
             </div>
+
+            <div className="source-picker study-actions"><label>{zh ? '课程文件夹' : 'Course folder'} <input list="note-courses" value={courseDraft} maxLength={120} onChange={(e) => setCourseDraft(e.target.value)} disabled={running} /></label><datalist id="note-courses">{[...new Set(notes.map((n) => n.course).filter(Boolean))].map((course) => <option key={course} value={course} />)}</datalist><button className="btn ghost" disabled={running || courseDraft === (note.frontMatter.course ?? '')} onClick={async () => {
+              try { const updated = await window.loomnote.setNoteCourse(note.id, courseDraft); setNote(updated); useApp.getState().setActiveNote(updated); await useApp.getState().refreshAll() }
+              catch (e) { useApp.getState().setError(String(e)) }
+            }}>{zh ? '移动到课程' : 'Move to course'}</button></div>
+            {sources.length > 1 && <div className="source-picker"><label>{zh ? '讲义原稿' : 'Lecture source'} <select value={source?.relPath ?? ''} onChange={(e) => setSource(sources.find((s) => s.relPath === e.target.value) ?? null)}>{sources.map((s) => <option key={s.relPath} value={s.relPath}>{s.name}</option>)}</select></label></div>}
 
             {hasSlides && pageProgress && pageProgress.total > 0 && pageProgress.done < pageProgress.total && (
               <div className="page-progress">
@@ -237,11 +283,12 @@ export function Notes() {
 
             <div className="note-body">
               {mode === 'body' && <div ref={bodyRef} className="md" />}
-              {mode === 'slides' && source && <PdfViewer noteId={note.id} relPath={`source/${source.name}`} />}
+              {mode === 'body' && source?.kind === 'image' && <figure className="source-image"><img src={`${assetBase}/${source.relPath.split('/').map(encodeURIComponent).join('/')}`} alt={source.name} /><figcaption>{source.name}</figcaption></figure>}
+              {mode === 'slides' && source && <PdfViewer noteId={note.id} relPath={source.relPath} page={requestedPage} />}
               {mode === 'split' && source && (
                 <div className="split-view">
                   <div className="split-left">
-                    <PdfViewer noteId={note.id} relPath={`source/${source.name}`} />
+                    <PdfViewer noteId={note.id} relPath={source.relPath} page={requestedPage} />
                   </div>
                   <div className="split-right">
                     <div ref={bodyRef} className="md" />
@@ -258,18 +305,19 @@ export function Notes() {
                       setDirty(true)
                     }}
                     spellCheck={false}
+                    readOnly={running}
                   />
                   <div className="source-bar">
                     <button
                       className="btn"
                       onClick={() => {
-                        setDraft(note.bodyMd)
+                        setDraft(body)
                         setDirty(false)
                       }}
                     >
                       {t('notes.revert')}
                     </button>
-                    <button className="btn primary" disabled={!dirty} onClick={() => void save()}>
+                    <button className="btn primary" disabled={!dirty || running} onClick={() => void save()}>
                       {t('notes.save')}
                     </button>
                   </div>
@@ -303,6 +351,12 @@ export function Notes() {
           </div>
         )}
       </section>
+      {proposal && <MergeReview proposal={proposal} onClose={() => setProposal(null)} onApplied={(updated) => {
+        setNote(updated); setDraft(updated.bodyMd); setDirty(false)
+        useApp.getState().setActiveNote(updated); useApp.getState().setLiveBody(updated.bodyMd)
+        void useApp.getState().refreshAll()
+        void window.loomnote.noteSources(updated.id).then(setSources).catch((e: unknown) => useApp.getState().setError(String(e)))
+      }} />}
     </div>
   )
 }

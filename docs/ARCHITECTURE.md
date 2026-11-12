@@ -17,10 +17,10 @@ How LoomNote is put together: what runs where, why the agent is a separate proce
 ```
 ┌─ Electron app ───────────────────────────────────────────────────────────┐
 │  renderer (React)                                                        │
-│    note view · demo sandbox · chat panel · settings                      │
+│    courses · notes · review · concept maps · demo sandbox · settings                      │
 │        ▲  IPC (contextBridge)                                            │
 │  main process (Node inside Electron)                                     │
-│    app lifecycle · SQLite store · note workspace · file watching         │
+│    courses/import/merge/study services · store · workspace · file watching         │
 └────────┬─────────────────────────────────────────────────────────────────┘
          │ spawn() + stdio JSON-RPC (the runtime's published SDK protocol)
          ▼
@@ -44,7 +44,8 @@ Four moving parts, three of them processes, one of them a library:
 
 ```
 packages/core/      Pure logic shared by everything: the note IR, the demo HTML
-                    discipline validator, feature analysis. No I/O, no Electron.
+                    discipline validator, feature analysis, review scheduler, section merge
+                    and knowledge-point extraction. No I/O, no Electron.
 packages/memory/    The local memory engine: chunking, dedup, recall, folding, rules.
 packages/harness/   The DeepSeek Harness bridge — the only package that knows the
                     runtime exists.
@@ -150,13 +151,15 @@ Everything is under Electron's `userData` directory, which `LOOMNOTE_DATA_DIR` c
                               — falls back to a JSON file when the native binding
                               is unavailable, e.g. an unrebuilt better-sqlite3
   workspaces/<noteId>/note.md the note file the agent reads and edits
-  harness/                    DSH_HOME: the runtime's sessions and the generated
+  harness/<noteId>/           per-note DSH_HOME: sessions and generated
                               loomnote-study.patch.yml
+  workspaces/<noteId>/source/ original material + extracted.md + pages/
+                              additional lectures under lectures/<sourceId>/
 ```
 
 - **The note is a file.** `workspace.ts` gives every note a folder and a `note.md`. The agent edits that file with the runtime's own tools; the app watches it, streams each change to the renderer as a live preview, and writes the durable copy back to the database on a debounce so a crash cannot lose a finished note. A small request is a small change because the edit happens where the text lives.
 - **Sessions are the runtime's business.** The harness home holds the durable session log, which is what makes resuming a note's conversation possible: reusing a session id resumes the persisted conversation. Nothing under it is read by product code except through the runtime.
-- **Settings include the API key.** Keys are stored in the same local settings row as the rest of the configuration and are handed to the child process through its environment; they are never written into the generated overlay and never sent anywhere except the endpoint the student configured. `config/local.env` is a development convenience for supplying the same values from the environment and is git-ignored.
+- **Settings include the API key.** The local store is not encrypted. Keys are stored in the same local settings row as the rest of the configuration and are handed to the child process through its environment; they are never written into the generated overlay and never sent anywhere except the endpoint the student configured. `config/local.env` is a development convenience for supplying the same values from the environment and is git-ignored.
 
 ## Security posture
 
@@ -170,7 +173,7 @@ A `data:` document does not inherit the parent's CSP, which is the point: the in
 
 **No shell, no plugin manager, no subagents.** Those rows are disabled in the profile overlay, so the capability is absent from the session rather than merely discouraged by the prompt.
 
-**No network unless the student asks for it.** The web tools are disabled unless web access is switched on in Settings, in which case exactly one fetch tool is advertised.
+**Web browsing is opt-in.** The web tools are disabled unless web access is switched on in Settings, in which case one fetch tool is advertised. Model requests still send the prompt and relevant source material to the configured endpoint. Local import does not make a model request.
 
 **The app shell is locked down too.** `apps/desktop/src/main/security.ts` denies new windows, allows permission requests only for clipboard reads, restricts in-app navigation to `file:`, `localhost` and `127.0.0.1`, and opens external links through the OS only for `http(s)` URLs.
 
@@ -181,3 +184,13 @@ A `data:` document does not inherit the parent's CSP, which is the point: the in
 - **No server, no account, no telemetry.** Nothing about a session leaves the machine except the model requests the student configured.
 - **No second agent loop.** The bridge owns protocol and translation only; planning, tool selection and revision belong to the runtime.
 - **No whole-note rewriting on a small request.** The `read` / `write` / `edit` contract and the file-backed workspace exist to make that failure mode structurally unlikely.
+
+## Courses and durable study state
+
+`courses.ts` stores course identity/archive status in the existing settings table; note front matter records the course name, and rename updates grouped notes. `office.ts` performs bounded, in-memory XML/ZIP extraction without executing macros. `merge.ts` stores a pending proposal with source checksum and exact base body before applying selected sections.
+
+`study.ts` derives review cards from current note blocks and stores question-keyed history in `review-progress`. The graph uses specific concepts, definitions and cited sources from the note's invisible JSON metadata, with a heading/definition fallback. It merges equal concept titles inside a course, retains source provenance, and never constructs folder/file nodes. Structured relationships have explicit endpoints; there is no external graph database or extra LLM call.
+
+Explicit preferences are editable local settings, injected together with self-rated review history into subsequent prompts. The older in-memory memory primitives remain available, but preference persistence does not rely on an external memory service. `provider.ts` checks an endpoint's models/authentication with a timeout, blocks redirects and returns bounded error text without copying credential-bearing response bodies.
+
+Every note has an isolated harness home and shares its session-start promise across concurrent requests. Model configuration changes restart idle sessions. The note watcher follows directory notifications across atomic replacement and falls back to file polling if the OS refuses native watches. JSON fallback writes use a temporary file and atomic rename rather than silently ignoring persistence failures.

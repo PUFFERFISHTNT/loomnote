@@ -2,7 +2,27 @@
 
 All notable changes to LoomNote (dev-test version) are recorded here.
 
-## [Unreleased]
+## [0.2.0] — 2026-11-12
+
+### Added
+- Course creation/rename/archive/restore, per-course material upload, batch error reporting, course filtering and note reassignment.
+- Local DOCX/PPTX/XLSX, CSV/TSV, HTML, JSON/TeX and image-source imports, with explicit format/size/OCR boundaries.
+- Concrete knowledge-point maps with definitions, labelled relationships and cited source notes; same-course concept deduplication and multiple-course selection.
+- Persistent review cards, individual answer reveal, source-page return, self-ratings and transparent interval scheduling.
+- Reviewable selected-section merging, stale-note/source protection and multiple retained lecture sources.
+- Editable persistent preferences, model connection checks and an offline sample.
+- Versioned automated tests, public synthetic fixtures, macOS/Windows CI and cross-platform Playwright Electron testing/recording.
+- Windows setup/start command wrappers and a safe local configuration example.
+
+### Fixed
+- Source discovery accidentally choosing generated files, source filename collisions, atomic note replacement notifications and failed native-watcher fallback.
+- Competing agent/editor writes, session-start races, per-note runtime overlay races and Stop persistence order.
+- Unsafe rendered HTML, JSON persistence error swallowing and PDF viewer lifecycle handling.
+
+### Documentation
+- Reproducible setup/run/test/recording instructions, accurate model-data flow and local key-storage disclosure, and a course deliverable checklist.
+
+## Earlier development (September–October 2026)
 
 ### Added
 - **The original deck, shown as a deck.** A PDF import is copied into the note's own folder and rendered page by page in a new *Slides* view; a *Slides + note* view puts the deck beside the note written from it. The note's images are served to the renderer through a private, read-only `loomnote-asset://` scheme that resolves only inside that note's folder.
@@ -10,7 +30,7 @@ All notable changes to LoomNote (dev-test version) are recorded here.
 - **Collapsible panels.** The navigation rail, the note list and the agent panel each fold away independently, and the two rail preferences survive a restart.
 - **A growing composer.** The chat input is a textarea that grows with the request, so a multi-sentence instruction is readable while it is being written rather than scrolling out of a single line.
 - **The demo sandbox can be driven.** The frame's bridge answers `probe` (list its interactive controls) and `click` (press one by index), through the demo's own element handlers. This is what makes "the demo still plays" checkable without a human, and what the recorded walkthrough uses to exercise a demo.
-- `scripts/record-demo.sh` records the one-minute walkthrough against the live system: it points the screen recorder at the window's own reported rectangle, drives the scripted run in `apps/desktop` (`--demo=<pdf>|<request>`), and encodes the result at three speeds (input near real time, thinking compressed, finished note and demo near real time) so the whole pipeline fits the one-minute limit.
+- A historical local-only `scripts/record-demo.sh` recorded the original walkthrough (superseded by the versioned `pnpm demo:record` driver): it points the screen recorder at the window's own reported rectangle, drives the scripted run in `apps/desktop` (`--demo=<pdf>|<request>`), and encodes the result at three speeds (input near real time, thinking compressed, finished note and demo near real time) so the whole pipeline fits the one-minute limit.
 
 ### Windows setup
 - `scripts\setup.ps1` installs pnpm itself when it is missing (corepack first, then the user-level npm prefix — no admin rights), refreshes `PATH` from the registry so a double-clicked window finds a freshly installed Node.js, and runs `pnpm install` with `CI=true` so pnpm may replace `node_modules` without asking a question it has no way to ask.

@@ -1,76 +1,51 @@
-# Evidence
+# Measured evidence
 
-What was run, when, and what came back. Every number here is from a command a
-reader can re-run; nothing is rounded up or inferred.
+Last updated: 12 November 2026. These are observed technical checks, not human learning/placement scores. Commands and fixtures are versioned; real lecture originals and credential-bearing runtime state are not.
 
-The repository ships the product rather than its test suite, so this file is the
-record of the suite's runs. The suite itself lives on the development machine.
+## Local verification (macOS)
 
-## Automated suite — 12 Oct 2026
-
-```
-$ pnpm test          # vitest, excluding the live-runtime test
- Test Files  21 passed (21)
-      Tests  119 passed | 2 skipped (121)
-   Duration  1.17s
-```
-
-The two skipped cases need a real lecture PDF supplied through
-`LOOMNOTE_SAMPLE_NOTE`; they check that every `:::demo` block a model wrote
-survives extraction and passes the sandbox discipline validator.
-
-What the suite covers:
-
-| Area | Representative cases |
+| Check | Observed result |
 |---|---|
-| Markdown and directives | a `:::demo` immediately after body text is still a demo (it was once swallowed into the paragraph); a closed `:::toc` does not render its contents twice, and does not eat a later block's closing fence; an unclosed demo block is bounded by the next heading instead of running to the end of the note; note-relative image paths resolve |
-| Demo sandbox | extraction of every demo in a note, in order, with stable indices; the discipline validator refuses external requests and frame escapes; the frame bootstrap declares no variable twice and defines every function before calling it; the bootstrap is syntactically valid; every demo block in a real note passes |
-| Chat rendering | an assistant reply's Markdown becomes elements — `**bold**` no longer reaches the reader as punctuation |
-| Harness bridge | JSON-RPC framing and error propagation; event normalisation; stream replay at the model's recorded pace; the ask-block protocol; the profile overlay's contents |
-| Memory | chunking, de-duplication, recall and rule folding |
-| Desktop main | IPC surface, document parsing, and the note workspace |
+| `pnpm typecheck` | Pass across all four workspace packages. |
+| `pnpm test` | 150 passed, 3 skipped, 26 files (25 passed / 1 explicitly skipped live file). |
+| Real PDF inputs added through `LOOMNOTE_TEST_PDFS` | 152 passed, 3 skipped, including the 70-page COMP2119 Balanced Trees and 16-page SDST2601 Chapter 2 Counting PDFs. |
+| `pnpm build` | Pass for the actual Electron main/preload/renderer bundles. |
+| `pnpm test:desktop` | Real built Electron workflow, including import, review, selected merge, per-file failure, concept map and restart persistence. See the attached result JSON and CI artifacts. |
+| `pnpm test:live` | Real SDK model/tool/file workflow passed (1 test); local existing credentials, no mocked model response. |
 
-```
-$ pnpm typecheck        # strict TypeScript, all four packages
-packages/core      OK
-packages/memory    OK
-packages/harness   OK
-packages/desktop   OK
-```
+The default skipped cases are the opt-in live runtime test and two optional externally supplied generated-note discipline checks. The default suite contains its own public PDF fixture and does not require private course files. Native SQLite was unavailable in this local environment; the supported atomic JSON fallback was exercised. CI separately reports native module availability.
 
-## The core path, run live — 12 Oct 2026
+## Real-course desktop generation and recording
 
-One completed run, recorded end to end in `AILT9019_Group39_Demo.mp4` (41.6 s,
-compressed from 147 s at a stated factor; the whole run is in the clip).
+The completed automated recording used the existing configured **DeepSeek official endpoint (`api.deepseek.com`, `deepseek-flash`)**, with the user's explicit permission to send the selected lecture material to that destination.
 
-**Input**: `COMP2119_Lecture08_Balanced_Trees_Static.pdf`, 70 slides, and the
-request in [README § A worked example](../README.md#a-worked-example-input-and-what-to-expect).
+Inputs:
 
-**Observed**, from the run's own logs and the resulting file:
+- `COMP2119_Lecture08_Balanced_Trees_Static.pdf` — 70 PDF pages.
+- `SDST2601SH (26-27, 1st) Chapter 2.pdf` — 16 PDF pages, Counting.
+- A public synthetic Markdown supplement for the selected-section merge.
+- A public synthetic textless PDF for the import-failure boundary.
 
-- the run completed with no renderer errors;
-- the agent read 16 slide images with `read_image`, wrote `note.md` once, and
-  used `edit` for every later change — never a full rewrite;
-- the finished note is 302 lines, carries 10 figures each captioned with the
-  slide it came from, one interactive rotation demo, and five self-test
-  questions that cite their slide page;
-- the demo passed the sandbox's runtime check on delivery: 2 controls, 19 drawn
-  elements, no error thrown inside the frame.
+Observed completed run:
 
-## Known limitations
+- **16 checkpoints**, **391.18 seconds** of test execution, **zero renderer errors**.
+- Live study notes for both real courses, with source-page citations and individual self-test answers.
+- An interactive slide-13 right rotation, starting at 50 and promoting 40, exercised through its actual Next button. The completed run's screenshot preserves 32 as the right child of 30 and 45 as the left child of 50; these were visually checked against the lecture.
+- An actual refusal to supply answers for a stated assessed exam, offering study support instead.
+- Three self-rated reviews retained across app restart; saved preferences and both course records restored.
+- A two-course map with **20 specific knowledge points**, definitions, source links and labelled relationships, including AVL balance/rotation and counting/product/permutation/combination concepts.
+- Scanned/textless-PDF import refused while the valid second-course file in the same batch succeeded.
 
-- **Only the DeepSeek route is exercised end to end.** Custom OpenAI-compatible
-  endpoints are configurable and are passed to the runtime, but have not been
-  run against a live endpoint.
-- **The runs recorded here were made on macOS.** The Windows setup, start and
-  packaging scripts mirror the macOS ones, and running the suite on Windows is
-  one of the team's next milestones.
-- **`better-sqlite3` is not rebuilt for Electron here**, so the app falls back to
-  its JSON store. The fallback is a supported path with the same behaviour; the
-  setup script attempts the rebuild and continues if it cannot finish.
-- **The demo sandbox's runtime check is a floor, not a review.** It proves a demo
-  draws something and responds to a control; it cannot tell whether the drawing
-  is *correct*. Demo placement is scored by readers in the plan, not here.
-- **Interruption is queueing, not cancellation.** The SDK protocol exposes no
-  cancel call, so a request typed mid-run is queued and re-thought in place; a
-  hard Stop tears the session down and restarts it.
+The first recording attempt stopped at the second course because the automation toggled an already-open panel closed. The driver was fixed and the complete run was repeated; the failed attempt is not represented as a passing demo. A visual check also caught an incorrect 32-node placement in that first generated demo, illustrating why the sandbox's execution check cannot establish academic correctness. The completed repeat was checked separately.
+
+The private `artifacts/recording-real-courses-v2/` directory retains raw continuous window video, a separate restart capture, checkpoint timings/screenshots, generated note and a successful `result.json`. These include real teaching content and are not distributed in the public repository. A viewing copy must disclose speed changes and the restart join; see [DEMO.md](DEMO.md).
+
+## Platforms and reproducibility
+
+The workflow in `.github/workflows/ci.yml` runs the actual offline suite and Electron restart workflow on both macOS and Windows. The exact GitHub run is the authoritative platform evidence; its artifacts include screenshots/results. A local macOS result alone does not establish Windows compatibility.
+
+A clean-source installation check must use the committed lockfile and public fixtures, without ignored local settings or lecture material. Record its outcome here after execution.
+
+## Limits of the evidence
+
+No human placement ratings, outside-user session, learning-gain measurement or team participation is inferred from automated checks. Structured concept relationships are model-authored study aids that need source review. The interval scheduler records self-ratings, not an assessment of mastery. Alternate model providers, arbitrary Office formatting and vision support are not all established by the DeepSeek live run.

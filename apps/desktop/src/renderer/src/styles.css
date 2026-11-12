@@ -530,3 +530,47 @@ button { font-family: inherit; }
 .pane-side.collapsed .pane-side-head h3,
 .pane-side.collapsed .note-list { display: none; }
 .pane-side.collapsed .pane-side-head { justify-content: center; }
+/* Study workflows share the note workbench's typography and spacing. */
+.study-view { max-width: 1120px; }
+.study-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.study-actions select, .source-picker select { margin-left: 8px; max-width: 300px; padding: 7px 10px; border: 1px solid var(--line2); border-radius: 6px; color: var(--text); background: var(--bg-input); }
+.study-card { margin-top: 24px; padding: 28px; background: var(--bg); border: 1px solid var(--line2); border-radius: 12px; }
+.study-markdown { padding: 12px 0 !important; max-width: 100% !important; }
+.study-answer { border-top: 1px solid var(--line2); margin-top: 18px; }
+.study-actions small { display: block; margin-top: 3px; font-size: 10px; opacity: .8; }
+.study-search, .preferences-editor { width: 100%; padding: 10px 12px; border: 1px solid var(--line2); border-radius: 6px; background: var(--bg-input); color: var(--text); font: inherit; }
+.pane-side .study-search { width: calc(100% - 24px); margin: 0 12px 8px; font-size: 12px; }
+.graph-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; align-items: start; }
+.note-graph { width: 100%; min-height: 420px; }
+.graph-details { padding: 20px; }
+.graph-related { display: flex; flex-direction: column; gap: 5px; text-align: left; width: 100%; padding: 12px 0; border: 0; border-bottom: 1px solid var(--line); color: var(--text); background: transparent; cursor: pointer; }
+.graph-related span { color: var(--text3); font-size: 12px; }
+.graph-note-list { display: flex; flex-direction: column; gap: 4px; margin-top: 20px; max-height: 260px; overflow: auto; }
+.modal-shade { position: fixed; inset: 0; background: #1a243477; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 32px; }
+.merge-dialog { width: min(100%, 940px); max-height: 85vh; display: flex; flex-direction: column; gap: 10px; background: var(--bg); color: var(--text); border-radius: 12px; padding: 28px; box-shadow: 0 20px 80px #0003; }
+.merge-changes { overflow: auto; min-height: 100px; padding: 8px 0; }
+.merge-changes details { padding: 12px 0; border-bottom: 1px solid var(--line2); }
+.merge-changes summary { cursor: pointer; }
+.merge-diff { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; padding-top: 14px; }
+.merge-diff pre { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg-input); padding: 14px; border-radius: 6px; max-height: 300px; overflow: auto; font-size: 12px; }
+.source-picker { padding: 8px 20px; border-bottom: 1px solid var(--line); font-size: 12px; }
+.connection-ok { color: #247449; }
+.connection-fail { color: #a74434; }
+.preferences-editor { min-height: 100px; resize: vertical; margin-top: 10px; }
+.course-field { display: block; margin-bottom: 20px; font-size: 13px; }
+.source-image { margin: 24px auto; max-width: 850px; text-align: center; }
+.source-image img { max-width: 100%; max-height: 640px; object-fit: contain; }
+.source-image figcaption { color: var(--text3); font-size: 12px; }
+.course-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.course-card { margin-top: 12px; }
+.course-card h2 { font-size: 20px; margin: 8px 0 0; }
+.course-icon { font-size: 26px; }
+.course-create { margin-bottom: 18px; }
+.course-create input { flex: 1; min-width: 200px; }
+.course-manage { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+.course-map-filters { margin-bottom: 20px; padding: 14px; background: var(--bg-side); border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
+.import-results { margin: 16px 0; font-size: 13px; user-select: text; }
+.course-field input { margin-top: 6px; }
+.course-filter { width: calc(100% - 24px); margin: 0 12px 12px; padding: 7px; border: 1px solid var(--line2); border-radius: 6px; background: var(--bg-input); color: var(--text); }
+.source-picker input { padding: 4px 8px; border: 1px solid var(--line2); border-radius: 4px; color: var(--text); background: var(--bg-input); }
+@media (max-width: 1180px) { .graph-layout { grid-template-columns: 1fr; } .note-toolbar { flex-wrap: wrap; } }

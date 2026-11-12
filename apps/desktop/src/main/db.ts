@@ -16,7 +16,7 @@ try {
 export interface AppDb {
   kind: 'sqlite' | 'json'
   health(): { ok: boolean; db: 'sqlite' | 'json'; noteCount: number; importCount: number }
-  listNotes(): Array<{ id: string; title: string; updatedAt: number }>
+  listNotes(): Array<{ id: string; title: string; updatedAt: number; course?: string }>
   getNote(id: string): Note | undefined
   saveNote(note: Note): void
   listImports(): Array<{ id: string; kind: ImportRecord['kind']; sourcePath: string; status: ImportRecord['status']; createdAt: number }>
@@ -110,8 +110,9 @@ class SqliteAppDb implements AppDb {
     return { ok: true, db: 'sqlite', noteCount, importCount }
   }
 
-  listNotes(): Array<{ id: string; title: string; updatedAt: number }> {
-    return this.db.prepare('SELECT id, title, updated_at as updatedAt FROM notes ORDER BY updated_at DESC').all() as unknown as Array<{ id: string; title: string; updatedAt: number }>
+  listNotes(): Array<{ id: string; title: string; updatedAt: number; course?: string }> {
+    const rows = this.db.prepare('SELECT id, title, updated_at as updatedAt, front_matter FROM notes ORDER BY updated_at DESC').all() as Array<{ id: string; title: string; updatedAt: number; front_matter: string }>
+    return rows.map(({ front_matter, ...row }) => ({ ...row, course: String(JSON.parse(front_matter).course ?? '') }))
   }
 
   getNote(id: string): Note | undefined {
@@ -200,20 +201,18 @@ class JsonAppDb implements AppDb {
   }
 
   private persist(): void {
+    fs.mkdirSync(path.dirname(this.file), { recursive: true })
+    const temporary = `${this.file}.tmp`
+    fs.writeFileSync(temporary, JSON.stringify({ notes: [...this.notes.values()], imports: this.imports, settings: [...this.settings.entries()] }), { mode: 0o600 })
+    fs.renameSync(temporary, this.file)
     this.saved = true
-    try {
-      fs.mkdirSync(path.dirname(this.file), { recursive: true })
-      fs.writeFileSync(this.file, JSON.stringify({ notes: [...this.notes.values()], imports: this.imports, settings: [...this.settings.entries()] }))
-    } catch {
-      /* noop */
-    }
   }
 
   health(): { ok: boolean; db: 'sqlite' | 'json'; noteCount: number; importCount: number } {
     return { ok: true, db: 'json', noteCount: this.notes.size, importCount: this.imports.length }
   }
-  listNotes(): Array<{ id: string; title: string; updatedAt: number }> {
-    return [...this.notes.values()].sort((a, b) => b.updatedAt - a.updatedAt).map((n) => ({ id: n.id, title: n.title, updatedAt: n.updatedAt }))
+  listNotes(): Array<{ id: string; title: string; updatedAt: number; course?: string }> {
+    return [...this.notes.values()].sort((a, b) => b.updatedAt - a.updatedAt).map((n) => ({ id: n.id, title: n.title, updatedAt: n.updatedAt, course: String(n.frontMatter.course ?? '') }))
   }
   getNote(id: string): Note | undefined {
     return this.notes.get(id)

@@ -8,38 +8,7 @@ import { disposeDemoRig } from './demo-verify.js'
 import { openDatabase, type AppDb } from './db.js'
 import { registerIpc } from './ipc.js'
 import { createChatHost, type ChatHost } from './harness-host.js'
-import { createWorkspace, type NoteWorkspace } from './workspace.js'
-
-/**
- * The recording driver (`--demo`, `--tour`, `--screenshot`).
- *
- * It is loaded through a computed specifier rather than a static import so that
- * the shipped application does not depend on it: a checkout without
- * `recorder.ts` still builds and runs, and no code path that types into a chat
- * box is reachable unless the caller asked for it by argument.
- */
-interface Recorder {
-  readArgs(argv: string[]): void
-  installWindow(win: BrowserWindow): void
-  attachCapture(win: BrowserWindow): void
-  initialRoute(): string | undefined
-  start(context: { getWindow: () => BrowserWindow | null; db: AppDb; chatHost: ChatHost; workspace: NoteWorkspace }): void
-  notifyTurnEnd(reason: string): void
-  notifyFirstWrite(): void
-}
-
-let recorder: Recorder | null = null
-
-async function loadRecorder(): Promise<Recorder | null> {
-  const spec = './recorder.js'
-  try {
-    return (await import(/* @vite-ignore */ spec)) as Recorder
-  } catch {
-    // No driver in this checkout: every call site is optional, so the app runs
-    // exactly as it does for a reader, minus the recording arguments.
-    return null
-  }
-}
+import { createWorkspace } from './workspace.js'
 
 let mainWindow: BrowserWindow | null = null
 let db: AppDb | null = null
@@ -72,8 +41,6 @@ function createWindow(route?: string): BrowserWindow {
   win.on('closed', () => {
     mainWindow = null
   })
-  recorder?.installWindow(win)
-  recorder?.attachCapture(win)
   if (isSmoke) {
     win.webContents.once('did-finish-load', () => {
       console.log(
@@ -92,6 +59,9 @@ function createWindow(route?: string): BrowserWindow {
 // opaque to fetch, and the note's own images would never load.
 registerWorkspaceScheme()
 
+// Lock identity is derived from userData. Set it first so isolated test or
+// recording libraries do not focus/terminate an unrelated study instance.
+if (process.env.LOOMNOTE_DATA_DIR) app.setPath('userData', process.env.LOOMNOTE_DATA_DIR)
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
   app.quit()
@@ -119,7 +89,6 @@ if (!gotLock) {
       return
     }
     installSecurityHandlers()
-    if (process.env.LOOMNOTE_DATA_DIR) app.setPath('userData', process.env.LOOMNOTE_DATA_DIR)
     db = openDatabase(app.getPath('userData'))
     const saved = db.getSetting('settings')
     if (saved) {
@@ -154,10 +123,6 @@ if (!gotLock) {
       getSettings: () => settingsStore,
       onEvent: (payload) => {
         mainWindow?.webContents.send(IPC.chatEvent, payload)
-        // The screen recorder watches these lines: one ends the timed part of
-        // the clip, the other keeps the app alive long enough to record.
-        if (payload.event.type === 'turn-end') recorder?.notifyTurnEnd(payload.event.reason)
-        if (payload.event.type === 'note-changed') recorder?.notifyFirstWrite()
       },
       onNoteBody: (noteId, bodyMd) => mainWindow?.webContents.send(IPC.noteLive, { noteId, bodyMd })
     })
@@ -176,10 +141,7 @@ if (!gotLock) {
       }
     })
 
-    recorder = await loadRecorder()
-    if (recorder) recorder.readArgs(process.argv)
-    mainWindow = createWindow(recorder?.initialRoute())
-    recorder?.start({ getWindow: () => mainWindow, db, chatHost, workspace })
+    mainWindow = createWindow()
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()

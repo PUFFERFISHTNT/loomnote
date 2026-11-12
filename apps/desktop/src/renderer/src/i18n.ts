@@ -17,6 +17,7 @@ export const DICT = {
   'app.tagline': ['LoomNote', 'living notes'],
   'nav.workbench': ['工作台', 'Workbench'],
   'nav.inbox': ['资料箱', 'Inbox'],
+  'nav.courses': ['课程', 'Courses'],
   'nav.notes': ['笔记工作区', 'Notes'],
   'nav.review': ['复习中心', 'Review'],
   'nav.graph': ['知识图谱', 'Graph'],
@@ -42,6 +43,7 @@ export const DICT = {
   'dash.stat.healthy': ['健康', 'healthy'],
   'dash.stat.events': ['Agent 事件（本次会话）', 'Agent events (this session)'],
   'dash.action.import': ['导入资料', 'Import material'],
+  'dash.action.sample': ['打开离线示例', 'Open offline sample'],
   'dash.action.organise': ['去整理笔记', 'Organise notes'],
   'dash.recent': ['最近笔记', 'Recent notes'],
   'dash.updated': ['更新', 'updated'],
@@ -55,19 +57,19 @@ export const DICT = {
   // ---- inbox -------------------------------------------------------------
   'inbox.title': ['资料箱', 'Inbox'],
   'inbox.sub': [
-    '拖入或选择文件，解析后自动生成笔记（PDF 提取正文文本；公式与插图随 AI 整理进入笔记）。',
-    'Drop in or choose a file; it is parsed on this machine and a note is created (PDF text is extracted locally; formulas and figures come in with the note).'
+    '按课程批量导入 PDF、Office、网页、文本或图片。文档在本机解析；图片需要视觉模型整理。',
+    'Import course material in batches: PDFs, Office documents, webpages, text or images. Documents are parsed locally; images need a vision-capable model to become notes.'
   ],
   'inbox.drop.parsing': ['正在解析导入…', 'Parsing…'],
   'inbox.drop.release': ['松手即导入', 'Drop to import'],
   'inbox.drop.idle': ['把文件拖到这里', 'Drop a file here'],
-  'inbox.drop.hint': ['支持 PDF · Markdown · TXT ｜ 或', 'PDF · Markdown · TXT ｜ or'],
+  'inbox.drop.hint': ['PDF · DOCX · PPTX · XLSX · CSV · HTML · 文本 · 图片', 'PDF · DOCX · PPTX · XLSX · CSV · HTML · text · images'],
   'inbox.choose': ['选择文件…', 'Choose a file…'],
   'inbox.history': ['导入记录', 'Import history'],
   'inbox.none': ['暂无导入记录', 'No imports yet'],
   'inbox.none.hint': [
-    'Word / Excel 解析在后续版本加入；当前 PDF 与 Markdown 已全链路可用。',
-    'Word and Excel parsing come later; PDF and Markdown already work end to end.'
+    '可一次选择多个文件，逐个显示成功或失败。旧版 DOC/PPT/XLS 请先另存为现代格式。',
+    'Choose several files at once; each gets its own result. Export legacy DOC/PPT/XLS files to a modern format first.'
   ],
   'inbox.col.file': ['文件', 'File'],
   'inbox.col.type': ['类型', 'Type'],
@@ -195,18 +197,6 @@ export const DICT = {
   'preset.ollama-local': ['本地 Ollama', 'Ollama (local)'],
 
   // ---- misc --------------------------------------------------------------
-  'comingSoon.review.title': ['复习中心', 'Review centre'],
-  'comingSoon.review.desc': [
-    '抽认卡、FSRS 间隔重复与错题归因将在 M4 上线。AI 整理出的自测题此刻已随笔记生成。',
-    'Flashcards, spaced repetition and mistake tracking arrive in M4. The self-test questions are already written with each note.'
-  ],
-  'comingSoon.graph.title': ['知识图谱', 'Knowledge graph'],
-  'comingSoon.graph.desc': [
-    '力导向画布、增量合并 Diff 与 MOC 地图将在 M3 上线。双链语法 [[知识点]] 已可在笔记中使用。',
-    'The graph canvas, incremental merging and MOC maps arrive in M3. Wiki-link syntax already works inside notes.'
-  ],
-  'comingSoon.title': ['即将上线', 'Coming soon'],
-  'comingSoon.body': ['该视图按里程碑排期开发中。', 'This view is scheduled for a later milestone.'],
   'time.today': ['今天', 'Today'],
   'time.yesterday': ['昨天', 'Yesterday']
 } as const

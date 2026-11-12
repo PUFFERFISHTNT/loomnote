@@ -15,3 +15,7 @@ declare module 'katex/dist/contrib/auto-render.mjs' {
   }) => void
   export default renderMathInElement
 }
+declare module '*.md?raw' {
+  const content: string
+  export default content
+}

@@ -7,7 +7,9 @@ import { Dashboard } from './views/Dashboard.js'
 import { Imports } from './views/Imports.js'
 import { Notes } from './views/Notes.js'
 import { Settings } from './views/Settings.js'
-import { ComingSoon } from './views/ComingSoon.js'
+import { Review } from './views/Review.js'
+import { Courses } from './views/Courses.js'
+import { Graph } from './views/Graph.js'
 import { ChatPanel } from './components/ChatPanel.js'
 import { Toast } from './components/Toast.js'
 
@@ -50,10 +52,11 @@ export function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/imports" element={<Imports />} />
+            <Route path="/courses" element={<Courses />} />
             <Route path="/notes" element={<Notes />} />
             <Route path="/notes/:id" element={<Notes />} />
-            <Route path="/review" element={<ComingSoon title={t('comingSoon.review.title')} icon="🔁" desc={t('comingSoon.review.desc')} />} />
-            <Route path="/graph" element={<ComingSoon title={t('comingSoon.graph.title')} icon="🕸" desc={t('comingSoon.graph.desc')} />} />
+            <Route path="/review" element={<Review />} />
+            <Route path="/graph" element={<Graph />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
@@ -92,6 +95,7 @@ function Sidebar() {
         </button>
       </div>
       <nav>
+        <NavLink to="/courses" title={t('nav.courses')}><span className="ico">📚</span><span className="label">{t('nav.courses')}</span></NavLink>
         <NavLink to="/" end title={t('nav.workbench')}>
           <span className="ico">🏠</span> <span className="label">{t('nav.workbench')}</span>
         </NavLink>

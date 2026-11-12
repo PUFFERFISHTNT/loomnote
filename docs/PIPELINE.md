@@ -1,146 +1,43 @@
-# Pipeline
+# Study workflow
 
-The end-to-end workflow, written so a reviewer can follow it by hand on their own machine — and check every claim as they go.
+## 1. Create a course and import materials
 
-- [Before you start](#before-you-start)
-- [1. Import a lecture](#1-import-a-lecture)
-- [2. Type a request](#2-type-a-request)
-- [3. Watch the work](#3-watch-the-work)
-- [4. Interrupt with a new request](#4-interrupt-with-a-new-request)
-- [5. Answer a question when the agent asks one](#5-answer-a-question-when-the-agent-asks-one)
-- [6. See the note change in place](#6-see-the-note-change-in-place)
-- [7. Check the result](#7-check-the-result)
-- [8. Take the note with you](#8-take-the-note-with-you)
-- [Demo discipline](#demo-discipline)
-- [When something looks wrong](#when-something-looks-wrong)
+Create a course in **Courses**, then upload one or several files. The Inbox preselects that course; each file reports its own success or failure. A failed file does not abort the rest of the batch. Empty courses persist, and course rename updates the notes grouped under it. Archiving a course does not delete its notes or sources.
 
-## Before you start
+Parsing is local. PDF page indexes, slide markers and spreadsheet cell labels survive text extraction. The source file is copied to the note workspace and its extracted text is retained separately in `source/extracted.md`. The initial note is the extracted content, so importing does not automatically incur a model request. See README for supported formats and boundaries.
 
-```bash
-pnpm install
-pnpm build
-./scripts/start.sh          # macOS / Linux
-.\scripts\start.ps1         # Windows PowerShell
-```
+## 2. Generate and inspect a study note
 
-Then open **Settings**, pick the model endpoint (the DeepSeek official API preset is already filled in), paste your API key and save. English is the default interface language; switching to Chinese there also switches the language the agent writes notes in.
+Open the note, expand the agent panel and ask it to organise the material. Your request and relevant material are sent to the endpoint configured in Settings. The DeepSeek Harness process plans and uses its file tools inside that note's workspace. Tool calls/results and streamed replies appear in the panel. The app watches the parent directory of `note.md`, with polling fallback, so atomic file replacement does not detach the preview.
 
-The first time a note is talked about, the app looks for a plain Node.js 24+ on the machine and starts the harness runtime with it. If it cannot find one, it says so in the agent panel instead of failing silently — see [README.md](../README.md) for the Windows paths it searches.
+The profile asks for headings, formulas/tables, individual self-test answers with citations, and specific knowledge points/relationships. Diagrams can be inspected through locally rasterised source pages if the model supports images. Never treat a model citation as verified solely because it contains a page number.
 
-## 1. Import a lecture
+PDF notes offer **Slides**, **Slides + note**, **Read**, **Demo** and **Source** views. A short follow-up uses `edit` to modify the relevant passage. **Stop** tears down the runtime before the latest file is persisted; it retains completed edits. Source editing is disabled during an active agent turn to prevent competing writers.
 
-Open the **Inbox** and drop in a PDF, a Markdown file or a TXT file (or use the file picker).
+## 3. Use interactive explanations where they help
 
-- PDF text is extracted locally with pdf.js; nothing is uploaded.
-- The import is recorded in the import history with its type and status.
-- The material becomes a note you can open straight away in **Notes**.
+The agent first presents a placement plan: does state change, would a static explanation obscure order, and can the interaction stay within eight offline steps? Each demo has a single root, inline styles/script, a drawn SVG/canvas/table and visible controls. The script is at the end and has no external resources.
 
-If a file type is not supported yet, the import is refused with a message. It is never silently truncated or mis-decoded.
+Static validation checks the HTML, then a restrictive iframe sandbox/CSP blocks network and host access. The runtime probe checks that something is drawn and a control responds; it does not prove mathematical correctness. A failure is shown with the measured problem so it can be repaired.
 
-## 2. Type a request
+## 4. Merge a later lecture
 
-Open the note and use the agent panel on the right. Plain words are enough:
+**Merge lecture** prepares a saved preview. Identical sections are skipped; changed headings are updates requiring selection; new sections are additions selected by default. Apply only accepted changes. A checksum and exact base-body comparison refuse proposals if the source or note changed in the meantime. Additional sources live under unique `source/lectures/<id>/` folders, so equal filenames cannot overwrite previous lectures.
 
-```
-Turn this lecture into a study note: sections, formulas, and a demo for the queueing result.
-```
+This is a deterministic section comparison, not semantic deduplication. PDF/Office additions initially use their extracted text. Ask the agent to organise newly added content and update its concept metadata afterwards.
 
-```
-The Little's Law part is still confusing — add a step-by-step visualization.
-```
+## 5. Review and return to the source
 
-```
-Add three self-test questions with the page each answer comes from.
-```
+The review centre reads `## Self-test` blocks, with `### Q1. ...` followed by `Answer: ... (Lecture, p. N)`. Reveal the answer, check the original if needed, then self-rate. Again is due in ten minutes; Hard/Good/Easy use simple increasing day intervals. IDs depend on note/question text, so reordering and answer corrections keep history. Rewriting the question creates a new card.
 
-The request becomes a turn on the note's harness session. A session is created lazily the first time a note is talked about and kept alive afterwards, so a follow-up question continues the same conversation rather than starting over.
+Progress is stored locally and survives restart. Later requests receive the note's self-rated review history, explicitly described as self-report rather than automatic scoring.
 
-## 3. Watch the work
+## 6. Explore the course's knowledge points
 
-Everything the agent does appears in the panel as it happens, and it is worth knowing what you are looking at:
+The map shows specific concepts, never a folder/file tree. A generated note stores an invisible `loomnote:concepts` JSON comment with titles, definitions, note headings, optional PDF page indexes and labelled relationships. Equal normalised titles merge within one course, retaining all source notes. Relations whose endpoints are missing are omitted. Malformed or partially streamed metadata does not crash the map.
 
-| On screen | What it is |
-|---|---|
-| Reasoning text | The model's own thinking for the current step, replayed at the pace it produced it |
-| Answer text | The assistant's visible reply for the step, replayed the same way |
-| Tool calls | The tools the model asked for — `read`, `edit`, `glob`, `write` — with their arguments |
-| Tool results | What each call returned, including failures, verbatim |
-| Turn markers | Where one turn opened and where it closed, with the runtime's end reason |
+Notes without that metadata use meaningful headings and `**term**: definition` lines. Generic headings, self-tests, code examples and demo HTML are excluded. This fallback is a concept index; it does not infer prerequisite relationships. Select a point for its definition and source links. Course checkboxes allow a single map or several maps together while keeping course identities separate.
 
-The runtime publishes a committed message per step rather than per token, but every committed message carries its original model stream — the runs of reasoning and answer deltas with the millisecond gaps between them. LoomNote replays those gaps, which is why reasoning appears to be typed rather than pasted. The replay is presentation only: the committed event always lands afterwards, so what you see can never disagree with what the note contains.
+## 7. Preserve preferences and files
 
-What you will *not* see is a shell command, a subagent, a background job or a plugin being installed: those tools are disabled in the LoomNote profile, so they are not part of the session at all.
-
-## 4. Interrupt with a new request
-
-Press **Stop** in the panel while a turn is running. The session stops the turn; the note keeps whatever was already written, because the note is a file and edits are incremental. Then send a different request — for instance, "keep the structure but make the demo show the queue draining one customer at a time".
-
-Interrupting is a normal way to work here, not a recovery path: the agent edits lines rather than regenerating the document, so stopping mid-turn cannot scramble what was already approved. Pressing **Revert** restores the last saved body if you want to discard an edit of your own.
-
-## 5. Answer a question when the agent asks one
-
-When a request is genuinely ambiguous, the agent ends its reply with a question and 2–5 options rather than guessing. The app renders them as clickable cards below the reply; the panel shows the same event as an *ask*. Clicking a card sends that option's label back as your next message, which continues the turn's work.
-
-Two things worth noting:
-
-- The options are written as complete answers ("Animate the queueing section", not "Option A"), because the label is literally what gets sent back.
-- The question arrives in band, as a fenced `loomnote:ask` block in the reply, because an SDK client has no wire method to answer the runtime's blocking ask-user tool. The block is stripped from the displayed message so it never shows up as code.
-
-The agent is told to ask only when the request is genuinely ambiguous, never to confirm something it can already see.
-
-## 6. See the note change in place
-
-The note view has three tabs — **Read**, **Demo** and **Source** — and the body updates while the turn is still running. That is not a preview of a string held in memory: the agent writes `note.md` in the note's own working directory with the runtime's `read` / `write` / `edit` tools, the app watches that file, and each change streams to the view.
-
-The practical consequence is the one the product is judged on: ask for one sentence to change and one part of the file changes. The rest stays byte-identical.
-
-## 7. Put the deck beside the note
-
-An imported PDF is copied into the note's own folder, so the app can show it back to you. Four views sit on the note toolbar:
-
-| View | What it shows |
-|---|---|
-| **Read** | the note, with each `:::demo` playing inline where the agent put it |
-| **Slides** | the original deck, one page at a time, with page navigation |
-| **Slides + note** | the deck on the left and the note on the right — walk the deck to the slide a section came from and read the note's version of it next to it |
-| **Demo** | the note's interactive demo on its own, at full size |
-
-Every rail folds: the navigation strip, the note list and the agent panel each collapse on their own, and the two rail preferences survive a restart. Folded down, the pair view has room for both the deck and the note.
-
-The agent can see these pages too. Each page is rasterised once into `source/pages/pNNN.png`, and the agent reads the ones it needs with its image tool before writing a caption — so an embedded figure is one it has actually looked at.
-
-## 8. Check the result
-
-A reviewer can verify a finished note without trusting the UI:
-
-1. **Read the body.** Headings, tables and formulas should match the lecture, and the demo block should sit where the concept is explained rather than at the end.
-2. **Open the Demo tab.** The demo renders in the sandbox; the panel reports *External requests: 0*. If a generated block fails the discipline check it is blocked with a message instead of being rendered.
-3. **Read the Source tab.** It is the raw Markdown, including the `:::demo … :::` slot. This is exactly the file on disk.
-4. **Check the self-test section.** Each answer should point back at its source, e.g. `(Lecture 3, p. 12)`. The agent is instructed never to invent a page number or formula; if the material does not support one it should say so.
-5. **Check the file itself.** The note lives at `<userData>/workspaces/<noteId>/note.md` (see [ARCHITECTURE.md](ARCHITECTURE.md#where-local-data-lives) for the exact roots). Opening it in any Markdown viewer should show the same document the app shows.
-6. **Make a small change and compare.** Ask for one line to be reworded and diff the file before and after: the change should be confined to that line.
-
-## 9. Take the note with you
-
-The note is a plain Markdown file, so there is nothing to unlock: open the note's folder, copy `note.md` wherever you keep your material, and it renders in any Markdown viewer that passes inline HTML through. Inline HTML demos are self-contained — they carry their own styles and script and reference no external resources — so a note with a demo keeps working outside the app.
-
-## Demo discipline
-
-An interactive demo is added only when the idea **changes over time or over inputs** — a queue draining, a recursion unwinding, a binary search halving a range, a state machine stepping — and a static table would force the reader to reconstruct the order of events. Otherwise prose, a table or a formula is the better answer, and a demo that merely decorates one is a failure of the same rule.
-
-When a demo is written, it must be:
-
-- **One self-contained block.** Inline styles and inline script inside a single root element, with `:::demo <title>` on its own line above and a closing `:::` on its own line below.
-- **Zero external requests.** No `http(s)` URLs at all — no images, fonts, scripts, stylesheets or `fetch()` targets. A note must render the same on a machine with no network.
-- **One root element**, prefixed so its styles cannot leak into the note around it.
-- **At most eight steps.** A demo is a thing to click through in a minute; anything longer is a chapter.
-- **Free of the blocked constructs:** external scripts, `window.open`, navigation of the host page, and `backdrop-filter` (which is both a rendering hazard and a performance one).
-
-Enforcement is layered rather than advisory: the persona asks for these rules, `validateDemoHtml()` in `packages/core` rejects a block that breaks them before it reaches the DOM, and the sandbox the block finally runs in has a CSP of `default-src 'none'` with no same-origin access — so even a rule-breaking demo has nowhere to go.
-
-## When something looks wrong
-
-- **Nothing appears in the panel.** Check the session status indicator: a session that never became `ready` prints the reason, usually a missing model credential or no plain Node.js 24+ on the machine.
-- **A turn ends with an error event.** The message is the provider's own text — a rejected key, an unknown model id, a rate limit — surfaced verbatim rather than swallowed, so a note never silently stops growing.
-- **A demo is blocked.** The view says it failed the discipline check and shows which rule tripped. Ask the agent to rewrite it; the check is a gate, not a crash.
-- **The note looks stale.** It is a file: check `note.md` on disk and the app will have followed it. If the file changed and the view did not, the watcher is the thing to look at, not the note.
+Explicit “Remember: …” / “记住：…” statements are saved as editable preferences. Settings lets the student remove or correct them. No extra memory service is needed. Copy the whole note workspace to retain source assets; interactive `:::demo` blocks require LoomNote or another compatible renderer and are not executed by ordinary Markdown viewers.

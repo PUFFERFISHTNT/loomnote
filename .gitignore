@@ -7,6 +7,7 @@ data/
 !apps/desktop/data/
 apps/desktop/data/*
 !apps/desktop/data/demo-note.md
+!apps/desktop/data/demo-note.en.md
 release/
 .vite/
 config/local.env
@@ -23,19 +24,10 @@ config/local.env
 
 *.tsbuildinfo
 
-# The repository ships the product, not its test suite or the tools used to make
-# the course deliverables. Both stay on the machine that runs them.
-/packages/*/tests/
-/apps/desktop/tests/
-/vitest.config.ts
-/docs/TESTING.md
-# The recording pipeline: the scripted walkthrough driver and the screen-capture
-# script that points itself at the window. Both produce the course video and
-# neither is part of the product, so the app loads the driver through a computed
-# specifier and builds fine when it is absent (verified both ways).
+# Private course drafts and submission bundles contain team-only information.
+/course-deliverables/
+/artifacts/
+# Legacy local-only recording scripts; supported driver is scripts/desktop-e2e.mjs.
 /scripts/record-demo.sh
 /scripts/harness-smoke.ts
 /apps/desktop/src/main/recorder.ts
-
-# CI is not part of the product; the repository ships the app itself.
-/.github/

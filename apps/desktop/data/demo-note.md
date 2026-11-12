@@ -12,25 +12,20 @@ difficulty: 4
 
 $$f[i][j] = \max\bigl(f[i-1][j],\; f[i-1][j-w_i] + v_i\bigr)$$
 
-:::demo 排队模型 · 动画演示
-<div id="demo-root">
-<style>
-#demo-root{font-family:-apple-system,'PingFang SC',sans-serif;padding:18px;background:#fbfbfa;border-radius:8px}
-#demo-root .row{display:flex;gap:6px;margin:10px 0}
-#demo-root .cust{width:34px;height:34px;border-radius:50%;background:#2383e2;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;transition:opacity .3s}
-#demo-root .server{width:56px;height:34px;border-radius:8px;background:#0f7b4f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;margin-right:10px}
-#demo-root .log{font-size:12px;color:#73726e;margin-top:8px;min-height:18px}
-</style>
-<h3 style="margin:0 0 6px;font-size:16px">M/M/1 排队：谁先被服务？</h3>
-<div class="row"><div class="server">服务台</div><div id="queue" class="row"></div></div>
-<div class="log" id="msg">点击「下一位」观察队列移动（FIFO）</div>
-<button id="next" style="padding:6px 14px;border:none;border-radius:6px;background:#2383e2;color:#fff;cursor:pointer;font-size:13px">下一位</button>
+:::demo 0-1 背包：逐件更新最优价值
+<div id="knapsack-demo" style="font-family:system-ui,sans-serif;padding:20px;background:#f5f8fb;border-radius:12px;color:#263447">
+<h3 style="margin-top:0">0-1 背包：逐件更新最优价值</h3>
+<p>W = 5; (weight, value): A (2, 3), B (3, 4), C (4, 5).</p>
+<p id="ks-status"></p><table style="width:100%;border-collapse:collapse;text-align:center"><thead><tr><th>容量</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="ks-values"></tbody></table>
+<p id="ks-explain" style="min-height:42px"></p>
+<button id="ks-next" style="padding:8px 14px">下一件物品</button> <button id="ks-reset" style="padding:8px 14px">重置</button>
 <script>
 (function(){
-  var q=[1,2,3,4];var n=5;
-  function draw(){var el=document.getElementById('queue');el.innerHTML='';q.forEach(function(x){var d=document.createElement('div');d.className='cust';d.textContent=x;el.appendChild(d)})}
-  document.getElementById('next').onclick=function(){if(!q.length)return;var served=q.shift();if(n<=8)q.push(n++);document.getElementById('msg').textContent='已服务 #'+served+'，队列长度 '+q.length;draw()}
-  draw()
+var rows=[[0,0,0,0,0,0],[0,0,3,3,3,3],[0,0,3,4,4,7],[0,0,3,4,5,7]],step=0;
+var explanations=["从空背包开始。", "加入 A：容量至少为 2 时价值可达 3。", "加入 B：容量 5 可装 A 和 B，价值 7。", "加入 C：容量 4 的价值更新为 5；容量 5 仍选 A 和 B，价值 7。"];
+function draw(){document.getElementById('ks-status').textContent='已考虑物品数: '+step+' / 3';document.getElementById('ks-values').innerHTML='<tr><th>最优价值</th>'+rows[step].map(function(v,i){return '<td style="padding:10px;border:1px solid #ccc;background:'+(step&&v!==rows[step-1][i]?'#ccebdc':'white')+'">'+v+'</td>'}).join('')+'</tr>';document.getElementById('ks-explain').textContent=explanations[step];document.getElementById('ks-next').disabled=step===3}
+document.getElementById('ks-next').onclick=function(){if(step<3)step++;draw()};
+document.getElementById('ks-reset').onclick=function(){step=0;draw()};draw();
 })()
 </script>
 </div>
@@ -87,7 +82,17 @@ function knapsack(w: number[], v: number[], W: number): number {
 
 ## 自测
 
-1. 状态转移方程中 $f[i-1][j-w_i]+v_i$ 的边界条件是什么？
-2. 一维优化后为什么必须倒序枚举 $j$？
-3. 若物品可重复选取，方程只需改动哪里？
+### Q1. 状态转移方程中 $f[i-1][j-w_i]+v_i$ 的边界条件是什么？
 
+答案：仅在 $j \ge w_i$ 时可选取物品；初始状态为容量为零时价值为零。来源为本示例的状态转移部分；这是合成示例，没有讲义页码。
+
+### Q2. 一维优化后为什么必须倒序枚举 $j$？
+
+答案：倒序保证读取的是处理上一件物品后的状态，避免同一件物品被重复选取。来源为本示例的状态转移部分。
+
+### Q3. 若物品可重复选取，方程只需改动哪里？
+
+答案：把选取物品的项改成 $f[i][j-w_i]+v_i$，允许读取本行状态；一维实现改用正序。来源为本合成示例。
+
+
+<!-- loomnote:concepts {"concepts": [{"title": "0-1 约束", "description": "每件物品最多选择一次。", "heading": "问题定义"}, {"title": "动态规划状态", "description": "f[i][j] 表示前 i 件物品在容量 j 内的最大价值。", "heading": "状态设计"}, {"title": "选或不选的递推", "description": "容量允许时，比较选入和跳过当前物品的最优价值。", "heading": "状态设计"}, {"title": "伪多项式时间", "description": "O(nW) 时间取决于容量的数值大小。", "heading": "复杂度"}, {"title": "滚动数组优化", "description": "仅保留上一行可将空间减至 O(W)。", "heading": "复杂度"}], "relations": [{"from": "0-1 约束", "to": "选或不选的递推", "label": "约束"}, {"from": "动态规划状态", "to": "选或不选的递推", "label": "定义"}, {"from": "选或不选的递推", "to": "伪多项式时间", "label": "决定"}, {"from": "动态规划状态", "to": "滚动数组优化", "label": "支持"}]} -->

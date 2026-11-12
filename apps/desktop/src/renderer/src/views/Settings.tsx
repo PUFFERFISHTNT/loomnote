@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../stores/app.js'
-import { newProviderId, PRESET_PROVIDERS, type ProviderConfig, type Settings as SettingsShape } from '../../../shared/ipc.js'
+import { newProviderId, PRESET_PROVIDERS, type ProviderConfig, type ProviderTestResult, type Settings as SettingsShape } from '../../../shared/ipc.js'
 import { getLang, providerLabel, t, useLang } from '../i18n.js'
 
 /** 集成与设置：多接口管理（自定义添加）+ 界面语言 + 全局开关。 */
@@ -8,6 +8,8 @@ export function Settings() {
   const settings = useApp((s) => s.settings)
   const [form, setForm] = useState<SettingsShape | null>(null)
   const [saved, setSaved] = useState(false)
+  const [testing, setTesting] = useState<string | null>(null)
+  const [testResults, setTestResults] = useState<Record<string, ProviderTestResult>>({})
   const lang = useLang()
 
   useEffect(() => {
@@ -31,6 +33,7 @@ export function Settings() {
     if (!form) return
     const cur: SettingsShape = form
     setForm({ ...cur, providers: cur.providers.map((p) => (p.id === id ? { ...p, ...patch } : p)) })
+    setTestResults((results) => { const next = { ...results }; delete next[id]; return next })
   }
 
   function addProvider() {
@@ -128,6 +131,14 @@ export function Settings() {
                 <input style={inputStyle} type="number" value={p.maxTokens} onChange={(e) => patchProvider(p.id, { maxTokens: Number(e.target.value) || 4096 })} />
               </label>
             </div>
+            <div className="study-actions" style={{ marginTop: 12 }}>
+              <button className="btn" disabled={testing !== null} onClick={async () => {
+                setTesting(p.id)
+                try { const result = await window.loomnote.testProvider(p); setTestResults((previous) => ({ ...previous, [p.id]: result })) }
+                catch (e) { useApp.getState().setError(String(e)) } finally { setTesting(null) }
+              }}>{testing === p.id ? (lang === 'zh' ? '连接中…' : 'Connecting…') : (lang === 'zh' ? '测试连接' : 'Test connection')}</button>
+              {testResults[p.id] && <span role="status" className={testResults[p.id]!.ok ? 'hint connection-ok' : 'hint connection-fail'}>{testResults[p.id]!.message} ({testResults[p.id]!.latencyMs} ms)</span>}
+            </div>
           </div>
         ))}
       </div>
@@ -152,15 +163,21 @@ export function Settings() {
         </label>
       </div>
 
+      <div className="section-title">{lang === 'zh' ? '学习偏好' : 'Study preferences'}</div>
+      <p className="hint">{lang === 'zh' ? '每次请求都会应用到所有笔记。也可以在对话中说“记住：公式使用行内格式”。在这里修改或删除已保存规则。' : 'Applied to every request across all notes. You can also say “Remember: use inline formulas” in the agent panel. Edit or remove saved rules here.'}</p>
+      <textarea className="preferences-editor" rows={5} maxLength={8000} value={form.studyPreferences ?? ''} onChange={(e) => setForm({ ...form, studyPreferences: e.target.value })} aria-label={lang === 'zh' ? '学习偏好' : 'Study preferences'} />
+
       <div style={{ marginTop: 24, display: 'flex', gap: 10, alignItems: 'center' }}>
         <button
           className="btn primary"
           onClick={async () => {
+            try {
             const next = await window.loomnote.setSettings({ ...form, lang: getLang() })
             setForm(next)
             await useApp.getState().loadSettings()
             setSaved(true)
             setTimeout(() => setSaved(false), 2000)
+            } catch (e) { useApp.getState().setError(String(e)) }
           }}
         >
           {t('settings.save')}

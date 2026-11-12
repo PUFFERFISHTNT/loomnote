@@ -1,0 +1,69 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [4 0 R 6 0 R 8 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 5 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+5 0 obj
+<< /Length 451 >>
+stream
+BT /F1 16 Tf 48 730 Td (Balanced search trees - synthetic teaching deck) Tj ET
+BT /F1 16 Tf 48 702 Td (Page 1: Binary search and balance) Tj ET
+BT /F1 16 Tf 48 674 Td (A binary search tree keeps smaller keys on the left.) Tj ET
+BT /F1 16 Tf 48 646 Td (Larger keys are on the right.) Tj ET
+BT /F1 16 Tf 48 618 Td (The balance factor is height\(left\) - height\(right\).) Tj ET
+BT /F1 16 Tf 48 590 Td (An AVL tree keeps this factor in {-1, 0, 1}.) Tj ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 7 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+7 0 obj
+<< /Length 432 >>
+stream
+BT /F1 16 Tf 48 730 Td (Page 2: Right rotation) Tj ET
+BT /F1 16 Tf 48 702 Td (Start: root 30, left child 20, left grandchild 10.) Tj ET
+BT /F1 16 Tf 48 674 Td (The inorder sequence is 10, 20, 30.) Tj ET
+BT /F1 16 Tf 48 646 Td (Rotate right around 30: 20 becomes the new root.) Tj ET
+BT /F1 16 Tf 48 618 Td (10 is its left child and 30 its right child.) Tj ET
+BT /F1 16 Tf 48 590 Td (A rotation preserves the inorder sequence.) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 9 0 R /Resources << /Font << /F1 3 0 R >> >> >>
+endobj
+9 0 obj
+<< /Length 443 >>
+stream
+BT /F1 16 Tf 48 730 Td (Page 3: Why balance matters) Tj ET
+BT /F1 16 Tf 48 702 Td (An AVL tree has height O\(log n\).) Tj ET
+BT /F1 16 Tf 48 674 Td (Search takes O\(log n\) time in a balanced tree.) Tj ET
+BT /F1 16 Tf 48 646 Td (Insertion may require rotations to restore balance.) Tj ET
+BT /F1 16 Tf 48 618 Td (Static definitions do not need an animation.) Tj ET
+BT /F1 16 Tf 48 590 Td (Verify every answer against this synthetic deck.) Tj ET
+endstream
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000127 00000 n 
+0000000197 00000 n 
+0000000323 00000 n 
+0000000825 00000 n 
+0000000951 00000 n 
+0000001434 00000 n 
+0000001560 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+2054
+%%EOF

@@ -55,6 +55,10 @@ export function Dashboard() {
       </div>
 
       <div className="dash-actions">
+        <button className="btn" onClick={async () => {
+          try { const sample = await window.loomnote.openSample(); await useApp.getState().refreshAll(); navigate(`/notes/${encodeURIComponent(sample.id)}`) }
+          catch (e) { useApp.getState().setError(String(e)) }
+        }}>{t('dash.action.sample')}</button>
         <button className="btn primary" onClick={() => navigate('/imports')}>
           📥 {t('dash.action.import')}
         </button>
@@ -68,7 +72,7 @@ export function Dashboard() {
           <div className="section-title">{t('dash.recent')}</div>
           <div className="recent-list" style={{ marginTop: 10 }}>
             {notes.slice(0, 6).map((n) => (
-              <button key={n.id} className="recent-item" onClick={() => navigate('/notes')}>
+              <button key={n.id} className="recent-item" onClick={() => navigate(`/notes/${encodeURIComponent(n.id)}`)}>
                 <span className="ico">📄</span>
                 <span className="t">
                   <b>{n.title}</b>

@@ -1,0 +1,85 @@
+{
+  "ok": true,
+  "live": true,
+  "recorded": true,
+  "inputNames": [
+    "COMP2119_Lecture08_Balanced_Trees_Static.pdf",
+    "SDST2601SH (26-27, 1st) Chapter 2.pdf"
+  ],
+  "courses": [
+    "COMP2119 · Data Structures",
+    "SDST2601 · Probability and Statistics I"
+  ],
+  "platform": "darwin",
+  "node": "v24.22.1",
+  "elapsedMs": 391180,
+  "checkpoints": [
+    {
+      "name": "workbench",
+      "elapsedMs": 377
+    },
+    {
+      "name": "course-created",
+      "elapsedMs": 3103
+    },
+    {
+      "name": "pdf-imported",
+      "elapsedMs": 6154
+    },
+    {
+      "name": "original-slides",
+      "elapsedMs": 9141
+    },
+    {
+      "name": "live-request-sent",
+      "elapsedMs": 11870
+    },
+    {
+      "name": "generated-study-note",
+      "elapsedMs": 259620
+    },
+    {
+      "name": "interactive-demo-advanced",
+      "elapsedMs": 262440
+    },
+    {
+      "name": "academic-integrity-response",
+      "elapsedMs": 268683
+    },
+    {
+      "name": "durable-review-queue",
+      "elapsedMs": 272152
+    },
+    {
+      "name": "merge-proposal",
+      "elapsedMs": 275220
+    },
+    {
+      "name": "merge-applied",
+      "elapsedMs": 277925
+    },
+    {
+      "name": "second-course-import-and-scanned-pdf-refusal",
+      "elapsedMs": 281211
+    },
+    {
+      "name": "second-real-course-study-note",
+      "elapsedMs": 370228
+    },
+    {
+      "name": "course-concept-map",
+      "elapsedMs": 373370
+    },
+    {
+      "name": "ready-to-restart",
+      "elapsedMs": 377208
+    },
+    {
+      "name": "restart-persistence-verified",
+      "elapsedMs": 388584
+    }
+  ],
+  "reviewedBefore": 3,
+  "conceptCount": 20,
+  "errors": []
+}

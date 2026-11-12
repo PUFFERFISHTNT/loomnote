@@ -15,6 +15,7 @@ import { useApp } from '../stores/app.js'
 import { useChat, type ChatItem } from '../stores/chat.js'
 import { locale, t, useLang } from '../i18n.js'
 import { renderMarkdown } from '../render/markdown.js'
+import DOMPurify from 'dompurify'
 
 /** How the student wants the next message treated. */
 type Mode = 'auto' | 'edit' | 'explain'
@@ -30,7 +31,7 @@ function statusTone(status: HarnessStatus): string {
 /** Assistant replies are Markdown; the reader should not see the asterisks. */
 function renderChatMarkdown(text: string): string {
   try {
-    return renderMarkdown(text).html
+    return DOMPurify.sanitize(renderMarkdown(text).html)
   } catch {
     return text.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c] ?? c)
   }

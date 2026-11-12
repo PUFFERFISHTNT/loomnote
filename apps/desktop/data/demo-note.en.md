@@ -12,25 +12,20 @@ Given $n$ items and a knapsack of capacity $W$. Item $i$ has weight $w_i$ and va
 
 $$f[i][j] = \max\bigl(f[i-1][j],\; f[i-1][j-w_i] + v_i\bigr)$$
 
-:::demo Queueing · step-through animation
-<div id="demo-root">
-<style>
-#demo-root{font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;padding:18px;background:#fbfbfa;border-radius:8px}
-#demo-root .row{display:flex;gap:6px;margin:10px 0}
-#demo-root .cust{width:34px;height:34px;border-radius:50%;background:#2383e2;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;transition:opacity .3s}
-#demo-root .server{width:78px;height:34px;border-radius:8px;background:#0f7b4f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;margin-right:10px}
-#demo-root .log{font-size:12px;color:#73726e;margin-top:8px;min-height:18px}
-</style>
-<h3 style="margin:0 0 6px;font-size:16px">M/M/1 queue: who gets served first?</h3>
-<div class="row"><div class="server">Service desk</div><div id="queue" class="row"></div></div>
-<div class="log" id="msg">Press “Next customer” to watch the queue move (FIFO)</div>
-<button id="next" style="padding:6px 14px;border:none;border-radius:6px;background:#2383e2;color:#fff;cursor:pointer;font-size:13px">Next customer</button>
+:::demo 0-1 knapsack: one item at a time
+<div id="knapsack-demo" style="font-family:system-ui,sans-serif;padding:20px;background:#f5f8fb;border-radius:12px;color:#263447">
+<h3 style="margin-top:0">0-1 knapsack: one item at a time</h3>
+<p>W = 5; (weight, value): A (2, 3), B (3, 4), C (4, 5).</p>
+<p id="ks-status"></p><table style="width:100%;border-collapse:collapse;text-align:center"><thead><tr><th>Capacity</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead><tbody id="ks-values"></tbody></table>
+<p id="ks-explain" style="min-height:42px"></p>
+<button id="ks-next" style="padding:8px 14px">Next item</button> <button id="ks-reset" style="padding:8px 14px">Reset</button>
 <script>
 (function(){
-  var q=[1,2,3,4];var n=5;
-  function draw(){var el=document.getElementById('queue');el.innerHTML='';q.forEach(function(x){var d=document.createElement('div');d.className='cust';d.textContent=x;el.appendChild(d)})}
-  document.getElementById('next').onclick=function(){if(!q.length)return;var served=q.shift();if(n<=8)q.push(n++);document.getElementById('msg').textContent='Served customer #'+served+' · queue length '+q.length;draw()}
-  draw()
+var rows=[[0,0,0,0,0,0],[0,0,3,3,3,3],[0,0,3,4,4,7],[0,0,3,4,5,7]],step=0;
+var explanations=["Start with no items.", "Consider A: capacity at least 2 can hold value 3.", "Consider B: capacity 5 holds A and B, value 7.", "Consider C: capacity 4 improves to 5; capacity 5 still uses A and B, value 7."];
+function draw(){document.getElementById('ks-status').textContent='Items considered: '+step+' / 3';document.getElementById('ks-values').innerHTML='<tr><th>Best value</th>'+rows[step].map(function(v,i){return '<td style="padding:10px;border:1px solid #ccc;background:'+(step&&v!==rows[step-1][i]?'#ccebdc':'white')+'">'+v+'</td>'}).join('')+'</tr>';document.getElementById('ks-explain').textContent=explanations[step];document.getElementById('ks-next').disabled=step===3}
+document.getElementById('ks-next').onclick=function(){if(step<3)step++;draw()};
+document.getElementById('ks-reset').onclick=function(){step=0;draw()};draw();
 })()
 </script>
 </div>
@@ -46,7 +41,13 @@ Time $O(nW)$ and space $O(nW)$, reducible to $O(W)$ by keeping only the previous
 
 ## Self-test
 
-1. Why can this problem not be solved with a greedy rule that always takes the highest value-to-weight item?
-2. What changes in the recurrence if each item may be taken any number of times?
+### Q1. Why can this problem not be solved with a greedy rule that always takes the highest value-to-weight item?
 
-Answers: (1) a locally best ratio can block a better combination, and the recurrence explores both choices instead of committing. (2) The second term becomes $f[i][j-w_i] + v_i$, because item $i$ may be reused.
+Answer: A locally best ratio can block a better combination. The recurrence explores both choices instead of committing. Source: the recurrence section of this synthetic sample, rather than a lecture page.
+
+### Q2. What changes in the recurrence if each item may be taken any number of times?
+
+Answer: The second term becomes $f[i][j-w_i] + v_i$, because item $i$ may be reused. Source: the recurrence section of this synthetic sample.
+
+
+<!-- loomnote:concepts {"concepts": [{"title": "0-1 constraint", "description": "Each item is used at most once.", "heading": "The problem"}, {"title": "DP state", "description": "f[i][j] is the best value using the first i items within capacity j.", "heading": "The problem"}, {"title": "Skip or take recurrence", "description": "Compare skipping the item against taking it when capacity permits.", "heading": "Why the recurrence looks like this"}, {"title": "Pseudo-polynomial time", "description": "The table takes O(nW) time, which depends on the numeric capacity.", "heading": "Complexity"}, {"title": "Rolling-row optimisation", "description": "Keeping only the previous row reduces space to O(W).", "heading": "Complexity"}], "relations": [{"from": "0-1 constraint", "to": "Skip or take recurrence", "label": "constrains"}, {"from": "DP state", "to": "Skip or take recurrence", "label": "defines"}, {"from": "Skip or take recurrence", "to": "Pseudo-polynomial time", "label": "determines"}, {"from": "DP state", "to": "Rolling-row optimisation", "label": "supports"}]} -->

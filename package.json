@@ -4,12 +4,15 @@
   "private": true,
   "description": "LoomNote — turn a lecture into a living note. Local-first study companion built on the DeepSeek Harness agent runtime.",
   "scripts": {
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
+    "test:live": "node scripts/test-live.mjs",
+    "test:desktop": "node scripts/desktop-e2e.mjs",
+    "demo:record": "node scripts/desktop-e2e.mjs --record --live",
     "test:watch": "vitest",
     "typecheck": "pnpm -r typecheck",
     "build": "pnpm -r build",
     "dev": "pnpm --filter @loomnote/desktop dev",
-    "harness:smoke": "node --experimental-strip-types scripts/harness-smoke.ts"
+    "harness:smoke": "node scripts/test-live.mjs"
   },
   "engines": {
     "node": ">=24",
@@ -17,8 +20,9 @@
   },
   "packageManager": "pnpm@10.34.5",
   "devDependencies": {
-    "vitest": "^3.2.0",
-    "typescript": "^5.8.0"
+    "playwright": "1.62.1",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

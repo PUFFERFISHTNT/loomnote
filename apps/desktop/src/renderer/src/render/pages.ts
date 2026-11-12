@@ -27,6 +27,7 @@ export interface ExportPagesOptions {
   noteId: string
   /** Note-relative path of the deck inside the note folder. */
   relPath: string
+  pagesPath?: string
   /** 1-based pages that already exist on disk. */
   existing: readonly number[]
   onProgress?: (progress: ExportProgress) => void
@@ -53,7 +54,8 @@ export async function exportPages(options: ExportPagesOptions): Promise<{ writte
       const base64 = await renderPageToPngBase64(doc, page)
       if (!base64) continue
       if (options.signal?.aborted) break
-      await window.loomnote.noteWriteAsset(options.noteId, pageImagePath(page), base64)
+      const target = options.pagesPath ? `${options.pagesPath}/p${String(page).padStart(3, '0')}.png` : pageImagePath(page)
+      await window.loomnote.noteWriteAsset(options.noteId, target, base64)
       written += 1
       options.onProgress?.({ done: total - missing.length + written, total })
       // Yield between pages so the slide the reader is looking at keeps painting.

@@ -24,7 +24,7 @@ export interface Note {
 
 export interface ImportRecord {
   id: string
-  kind: 'md' | 'pdf' | 'image' | 'html' | 'url' | 'word' | 'excel'
+  kind: 'md' | 'pdf' | 'image' | 'html' | 'url' | 'word' | 'excel' | 'slides'
   sourcePath: string
   status: 'pending' | 'parsing' | 'done' | 'failed'
   log: string
