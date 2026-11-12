@@ -34,6 +34,26 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Install Electron binary
         run: pnpm setup:electron
+      - name: One-click setup
+        if: runner.os != 'Windows'
+        run: ./scripts/setup.sh
+      - name: One-click setup (Windows)
+        if: runner.os == 'Windows'
+        run: .\setup.cmd
+      - name: Portable Node bootstrap (macOS)
+        if: runner.os != 'Windows'
+        run: source scripts/runtime.sh && "$LOOMNOTE_NODE" --version
+        env:
+          LOOMNOTE_PORTABLE_NODE: '1'
+      - name: Portable Node bootstrap (Windows)
+        if: runner.os == 'Windows'
+        run: . ./scripts/runtime.ps1; & $LoomNoteRuntimeNode --version
+        env:
+          LOOMNOTE_PORTABLE_NODE: '1'
+      - name: One-click launch smoke
+        run: node scripts/launch.mjs --smoke
+        env:
+          LOOMNOTE_DATA_DIR: ${{ runner.temp }}/loomnote-launch-smoke
       - name: Typecheck
         run: pnpm -r typecheck
       - name: Offline tests
@@ -51,7 +71,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          foreach ($file in @('scripts/setup.ps1', 'scripts/start.ps1')) {
+          foreach ($file in @('scripts/setup.ps1', 'scripts/start.ps1', 'scripts/runtime.ps1')) {
             $parseErrors = $null
             [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file), [ref]$null, [ref]$parseErrors) | Out-Null
             if ($parseErrors.Count -gt 0) { $parseErrors | Format-List; exit 1 }

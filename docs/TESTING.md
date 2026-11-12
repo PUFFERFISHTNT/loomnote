@@ -50,6 +50,8 @@ No automated test establishes educational correctness, the ideal place for a dem
 
 ## CI and fresh checkouts
 
-`.github/workflows/ci.yml` runs frozen installation, typechecking, offline tests, a built Electron workflow/restart, and PowerShell syntax checks on Windows and macOS. It uploads build outputs plus desktop screenshots/results. Live credentials are not installed in CI. Check the actual run before claiming a platform passed; setup script review alone is insufficient evidence.
+`.github/workflows/ci.yml` runs frozen installation, the real setup entry points, portable Node download/checksum validation, launch smoke, typechecking, offline tests, a built Electron workflow/restart, and PowerShell syntax checks on Windows and macOS. It uploads build outputs plus desktop screenshots/results. Live credentials are not installed in CI. Check the actual run before claiming a platform passed; setup script review alone is insufficient evidence.
+
+Run `pnpm docs:screenshots` after building to refresh the README gallery from an isolated offline library. It uses the bundled synthetic note and generated PDF fixtures, sends no model request and refuses the live mode. The screenshots cover course folders, imports, notes, the agent panel, slides/split/source views, demo controls, merge review, concepts, review and settings.
 
 A reproducibility check should start from a clean checkout and repeat the four offline commands above. Local model settings, lecture files and ignored recordings are not required for this path. The native SQLite smoke reports whether the binding loads; JSON fallback is supported and tested when it does not.

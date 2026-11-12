@@ -9,6 +9,7 @@
     "test:desktop": "node scripts/desktop-e2e.mjs",
     "setup:electron": "pnpm --filter @loomnote/desktop exec install-electron --no",
     "demo:record": "node scripts/desktop-e2e.mjs --record --live",
+    "docs:screenshots": "node scripts/desktop-e2e.mjs --screenshots",
     "test:watch": "vitest",
     "typecheck": "pnpm -r typecheck",
     "build": "pnpm -r build",

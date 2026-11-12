@@ -10,6 +10,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const appRequire = createRequire(path.join(root, 'apps/desktop/package.json'))
 const record = process.argv.includes('--record')
 const live = process.argv.includes('--live')
+const gallery = process.argv.includes('--screenshots')
+assert(!(gallery && live), 'Public screenshots must use offline synthetic inputs.')
 const output = path.resolve(process.env.LOOMNOTE_ARTIFACTS_DIR ?? path.join(root, 'artifacts', record ? 'recording' : 'desktop'))
 await mkdir(output, { recursive: true })
 const dataDir = process.env.LOOMNOTE_E2E_DATA_DIR ?? await mkdtemp(path.join(os.tmpdir(), 'loomnote-desktop-'))
@@ -68,6 +70,11 @@ if (live) {
   delete env.LOOMNOTE_API_KEY; delete env.DEEPSEEK_API_KEY
 }
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+async function publicShot(name) {
+  if (!gallery) return
+  await delay(500)
+  await page.screenshot({ path: path.join(root, 'docs/screenshots', `${name}.png`) })
+}
 const checkpoint = async (name) => {
   checkpoints.push({ name, elapsedMs: Date.now() - startedAt })
   console.log(`[desktop] ${name}`)
@@ -106,6 +113,7 @@ try {
   await page.getByRole('button', { name: 'Create course', exact: true }).click()
   await page.getByRole('heading', { name: primaryCourse, exact: true }).waitFor()
   await checkpoint('course-created')
+  await publicShot('courses')
   await page.getByRole('button', { name: 'Upload material', exact: true }).click()
   await page.waitForFunction((course) => document.querySelector('input[list="import-courses"]')?.value === course, primaryCourse)
   assert.equal(await page.locator('input[list="import-courses"]').inputValue(), primaryCourse)
@@ -117,9 +125,17 @@ try {
   noteId = imported.id
   assert.equal(imported.course, primaryCourse)
   await checkpoint('pdf-imported')
+  await publicShot('imports')
   await open(`/notes/${noteId}`)
   await page.locator('.slide-count').filter({ hasText: /\/ \d+/ }).waitFor()
   await checkpoint('original-slides')
+  await publicShot('slides')
+  if (gallery) {
+    await page.getByRole('button', { name: 'Slides+note', exact: true }).click()
+    await publicShot('split')
+    await page.getByRole('button', { name: 'Source', exact: true }).click()
+    await publicShot('source')
+  }
   await page.evaluate(() => { window.__loomnoteEvents = []; window.loomnote.onChatEvent(({ event }) => window.__loomnoteEvents.push(event)) })
   if (live) {
     await showAgent()
@@ -153,6 +169,16 @@ try {
     await page.getByRole('button', { name: 'Read', exact: true }).waitFor()
     noteId = await page.evaluate(() => window.location.hash.split('/').pop())
     await checkpoint('offline-sample')
+    await publicShot('notes')
+    if (gallery) {
+      await showAgent()
+      await page.locator('.chat-compose textarea').fill('Explain the skip-or-take recurrence, and add a short practice question.')
+      await publicShot('chat')
+      await page.locator('.chat-compose textarea').fill('')
+      await page.getByRole('button', { name: 'Demo', exact: true }).click()
+      await page.frameLocator('iframe').first().getByRole('button', { name: 'Next item', exact: true }).click()
+      await publicShot('demo')
+    }
   }
   await open('/review')
   await page.getByRole('button', { name: 'Reveal answer', exact: true }).waitFor()
@@ -165,11 +191,13 @@ try {
   const reviewedBefore = await page.evaluate(async () => (await window.loomnote.reviewList()).reduce((total, c) => total + c.progress.repetitions, 0))
   assert(reviewedBefore >= 2)
   await checkpoint('durable-review-queue')
+  await publicShot('review')
   await open(`/notes/${noteId}`)
   await page.getByRole('button', { name: 'Merge lecture', exact: true }).waitFor()
   await pick([path.join(root, 'examples/COMP2119/lecture-02.md')], 'Merge lecture')
   await page.getByRole('dialog').waitFor()
   await checkpoint('merge-proposal')
+  await publicShot('merge')
   const base = await page.evaluate(async (id) => (await window.loomnote.getNote(id)).bodyMd, noteId)
   await page.getByRole('button', { name: /^Apply \d+ changes/ }).click()
   await page.getByRole('dialog').waitFor({ state: 'hidden' })
@@ -206,6 +234,7 @@ try {
   await page.locator('svg.note-graph circle').first().waitFor()
   await page.locator('svg.note-graph [role="button"]').first().click()
   await checkpoint('course-concept-map')
+  await publicShot('concepts')
   const graph = await page.evaluate(() => window.loomnote.noteGraph())
   assert(graph.nodes.length >= 3)
   assert(graph.courses.includes(secondaryCourse))
@@ -213,6 +242,7 @@ try {
   const prefs = page.getByRole('textbox', { name: 'Study preferences', exact: true })
   await prefs.fill('- use inline formulas')
   await page.getByRole('button', { name: 'Save settings', exact: true }).click()
+  await publicShot('settings')
   await delay(300)
   await open('/courses')
   await checkpoint('ready-to-restart')
@@ -228,6 +258,10 @@ try {
   assert.equal(restored.courses.length, 2)
   await open('/review')
   await checkpoint('restart-persistence-verified')
+  if (gallery) {
+    await open('/')
+    await publicShot('dashboard')
+  }
   assert.deepEqual(errors, [], `Renderer errors: ${errors.join('\n')}`)
   await writeFile(path.join(output, 'result.json'), JSON.stringify({ ok: true, live, recorded: record, inputNames: [path.basename(primaryFile), path.basename(secondaryFile)], courses: [primaryCourse, secondaryCourse], platform: process.platform, node: process.version, elapsedMs: Date.now() - startedAt, checkpoints, reviewedBefore, conceptCount: graph.nodes.length, errors }, null, 2))
   if (live) await copyFile(path.join(dataDir, 'workspaces', noteId, 'note.md'), path.join(output, 'generated-note.md'))

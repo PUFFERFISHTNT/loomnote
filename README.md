@@ -21,7 +21,7 @@ The repository contains the runnable application, source code, public fixtures, 
 | Review centre | Reveal self-test answers, rate recall, schedule the next due time, and keep review history through restart. | [Interface examples](#interface-examples) |
 | Knowledge-point maps | Show concrete concepts with definitions, relationships, course filters and source-page provenance; nodes are knowledge points, not files. | [Interface examples](#interface-examples) |
 | Preferences | Save explicit preferences such as `Remember: use inline formulas`, then edit or delete them in Settings. | [Interface examples](#interface-examples) |
-| Platforms | Run the same app and test workflow on macOS and Windows, with JSON storage as a supported fallback when native SQLite is unavailable. | [Requirements and setup](#requirements-and-setup) |
+| Platforms | Open the same app on macOS and Windows with automatic local setup and a JSON fallback when native SQLite is unavailable. | [Open the app](#open-the-app) |
 
 ## What works
 
@@ -36,26 +36,26 @@ The repository contains the runnable application, source code, public fixtures, 
 - **Simple preferences:** explicitly ask “Remember: use inline formulas”, or edit/delete preferences in Settings. Preferences and self-rated review history inform later requests without another memory service.
 - **Offline sample and bilingual interface:** open the clearly labelled bundled sample without a model key. English and Chinese interfaces are available.
 
-## Requirements and setup
+## Open the app
 
-Use **plain Node.js 24+** and **pnpm 10** (the lockfile pins pnpm 10.34.5). The harness runs under system Node, because its native add-ons cannot use Electron-as-Node. Set `LOOMNOTE_NODE` if Node is installed in a nonstandard location.
+Download and extract the [source ZIP](https://github.com/PUFFERFISHTNT/loomnote/archive/refs/heads/main.zip), or clone the repository. Keep the extracted folder writable.
 
-```bash
-# macOS
-./scripts/setup.sh
-./scripts/start.sh
-```
+| Platform | First run and later launches |
+|---|---|
+| **Windows** | Double-click **start.cmd**. |
+| **macOS** | Double-click **start.command**. If Finder blocks a downloaded script, use **Open** from its context menu, or run `bash scripts/start.sh` in Terminal. |
 
-On Windows, install Node.js 24+, then double-click **setup.cmd**, followed by **start.cmd**, or use PowerShell:
+The first launch prepares a plain **Node.js 24+** runtime if one is missing, installs **pnpm 10.34.5** locally, installs the frozen dependencies, downloads Electron, builds the app and opens it. Runtime downloads come from the official Node.js site and are checked against its SHA-256 manifest. Tools live in the ignored `.runtime/` folder; no global npm installation or administrator privileges are needed. Keep an internet connection for initial setup. Later launches reuse the build; source/dependency changes trigger setup again.
 
-```powershell
-.\scripts\setup.ps1
-.\scripts\start.ps1
-```
+For setup without opening a window, double-click **setup.cmd** (Windows) or **setup.command** (macOS). On macOS/Linux the shell equivalents are `bash scripts/setup.sh` and `bash scripts/start.sh`. `LOOMNOTE_NODE` can select an existing plain Node.js 24+ binary. The agent runs under plain Node rather than Electron's embedded runtime. SQLite is used when its native binding loads; otherwise the supported local JSON store keeps the same app workflow without requiring a C++ compiler.
 
-The Windows setup installs pnpm for the current user when necessary and attempts the SQLite rebuild. Missing native SQLite support uses the supported local JSON store. No C++ compiler is required for that fallback. The command wrappers also work when PowerShell's script execution policy blocks a direct invocation. Scripts keep errors visible and find a refreshed Node installation through the registry PATH.
+Once the window opens, choose **Open offline sample** to try notes, an interactive demo, review and concept maps without credentials. For new AI generation, open **Settings**, select a provider, enter your own API key, test the connection and save. DeepSeek official is the default preset; compatible endpoints can be added. The models-list check tests authentication and model availability; it does not guarantee a generation or vision request will succeed.
 
-Manual setup and development:
+Optional local configuration belongs in the ignored `config/local.env`; [config/local.env.example](config/local.env.example) contains the supported fields. Credentials are loaded only for the application after dependency installation and build complete. No key is included in this repository.
+
+### Developer setup
+
+Install plain Node.js 24+ and pnpm 10.34.5, then:
 
 ```bash
 pnpm install --frozen-lockfile
@@ -66,7 +66,7 @@ pnpm build
 pnpm dev
 ```
 
-The startup scripts load optional `config/local.env`; copy [config/local.env.example](config/local.env.example) and supply your own values. Alternatively, configure an endpoint in **Settings**, check its connection, save, and open a note's agent panel. The default preset is DeepSeek official; an OpenAI-compatible endpoint can be added. A models-list connection check verifies authentication/model availability, not whether generation or image understanding will succeed.
+The lockfile pins the dependency tree and `packageManager` pins pnpm. The Windows and macOS CI matrix runs setup, portable Node bootstrap, launch smoke checks, offline tests and a real Electron workflow with restart. [View CI](https://github.com/PUFFERFISHTNT/loomnote/actions/workflows/ci.yml).
 
 ## Try the complete workflow
 
@@ -87,9 +87,9 @@ Without a credential, **Open offline sample** on the workbench exercises the not
 
 The screenshots below use the bundled offline sample and synthetic inputs. They cover the user-facing flows in the application; private HKU course screenshots and generated recordings stay local.
 
-| Workbench | Course material import |
+| Course folders | Course material import |
 |---|---|
-| ![LoomNote workbench](docs/screenshots/dashboard.png) | ![Course material import](docs/screenshots/imports.png) |
+| ![Course folders](docs/screenshots/courses.png) | ![Course material import](docs/screenshots/imports.png) |
 
 | Generated note | Agent request and streamed tool activity |
 |---|---|
@@ -99,13 +99,17 @@ The screenshots below use the bundled offline sample and synthetic inputs. They 
 |---|---|
 | ![Original lecture slides](docs/screenshots/slides.png) | ![Source and note split view](docs/screenshots/split.png) |
 
+| Interactive explanation | Reviewable merge |
+|---|---|
+| ![Interactive explanation](docs/screenshots/demo.png) | ![Reviewable merge](docs/screenshots/merge.png) |
+
 | Knowledge-point map | Review centre |
 |---|---|
 | ![Knowledge points with definitions and sources](docs/screenshots/concepts.png) | ![Persistent review queue](docs/screenshots/review.png) |
 
-| Local settings and preferences |
-|---|
-| ![Settings](docs/screenshots/settings.png) |
+| Markdown source editor | Local settings and preferences |
+|---|---|
+| ![Markdown source editor](docs/screenshots/source.png) | ![Settings](docs/screenshots/settings.png) |
 
 ## Format boundaries
 
@@ -132,7 +136,7 @@ pnpm test:live        # explicit real model test; uses your configured credentia
 pnpm demo:record     # actual Electron + real model; saves local video/evidence
 ```
 
-The repository includes the test suite, public input fixtures, frozen lockfile and macOS/Windows CI. The desktop test automates the native picker result; extraction, persistence, views and review actions run in the real app. The recording is an automated demonstration and can make external model requests; it uses isolated app data and does not overwrite your study library. See [TESTING](docs/TESTING.md) and [DEMO](docs/DEMO.md).
+The repository includes the test suite, generated PDF fixtures, public text/Office inputs, frozen lockfile and macOS/Windows CI. The desktop test automates the native picker result; extraction, persistence, views and review actions run in the real app. The recording is an automated demonstration and can make external model requests; it uses isolated app data and does not overwrite your study library. See [TESTING](docs/TESTING.md) and [DEMO](docs/DEMO.md).
 
 ## Local storage and model requests
 
@@ -140,7 +144,13 @@ Notes, sources, preferences, settings and review history are stored under Electr
 
 **When you ask the agent to work, the relevant material and your request are sent to the model endpoint you configured.** There is no LoomNote backend or account. Disabling web tools does not disable model requests. Use only materials you are entitled to process with that provider.
 
-API keys are stored locally in settings and supplied to the child runtime through environment variables, rather than written into its profile overlay. The local settings store is **not encrypted**; protect the OS account and do not share its data folder, `config/local.env`, or raw runtime logs. Real HKU course originals and generated private evidence are excluded from the public repository.
+API keys are stored locally in settings and supplied to the child runtime through environment variables, rather than written into its profile overlay. The local settings store is **not encrypted**; protect the OS account and do not share its data folder, `config/local.env`, or raw runtime logs. Course originals, generated recordings and raw model logs stay outside the public repository.
+
+## Implementation scope
+
+LoomNote provides the course library, bounded document import, file-backed note workspace, source views, merge review, self-test scheduling, concept extraction/maps, provider settings, preference handling and sandboxed demo validation. The existing DeepSeek Harness runtime supplies the agent/tool execution; the configured model supplies generated explanations. Electron, PDF.js, KaTeX and Mermaid provide desktop, PDF, formula and diagram rendering. This application does not train a model or include a hosted graph or memory service.
+
+The study workflow is customised around course ownership, lecture-page provenance, individual question answers and explicit knowledge-point relationships. The app preserves sources and makes model activity visible so a learner can inspect an explanation, practise it and return to its origin. Generated notes, relationships and demos can contain mistakes; the runtime checks are technical checks and do not establish academic correctness or learning gains.
 
 ## Repository and documentation
 
