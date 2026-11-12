@@ -8,12 +8,12 @@ const KIND_ICON: Record<string, string> = { md: '📝', pdf: '📕', image: '�
 
 export function Imports() {
   const imports = useApp((s) => s.imports)
+  const [params] = useSearchParams()
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [course, setCourse] = useState('')
+  const [course, setCourse] = useState(() => params.get('course') ?? '')
   const [courses, setCourses] = useState<Course[]>([])
   const [results, setResults] = useState<Array<{ name: string; ok: boolean; message: string }>>([])
-  const [params] = useSearchParams()
   const zh = useLang() === 'zh'
   const notes = useApp((s) => s.notes)
   useEffect(() => { setCourse(params.get('course') ?? '') }, [params])

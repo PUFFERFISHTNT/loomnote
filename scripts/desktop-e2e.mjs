@@ -73,6 +73,7 @@ try {
   await page.getByRole('heading', { name: primaryCourse, exact: true }).waitFor()
   await checkpoint('course-created')
   await page.getByRole('button', { name: 'Upload material', exact: true }).click()
+  await page.waitForFunction((course) => document.querySelector('input[list="import-courses"]')?.value === course, primaryCourse)
   assert.equal(await page.locator('input[list="import-courses"]').inputValue(), primaryCourse)
   const pdf = primaryFile
   await pick([pdf])
