@@ -42,7 +42,7 @@ The private `artifacts/recording-real-courses-v2/` directory retains raw continu
 
 ## Platforms and reproducibility
 
-The workflow in `.github/workflows/ci.yml` runs the actual offline suite and Electron restart workflow on both macOS and Windows. The exact GitHub run is the authoritative platform evidence; its artifacts include screenshots/results. A local macOS result alone does not establish Windows compatibility.
+The workflow in `.github/workflows/ci.yml` runs the actual offline suite and Electron restart workflow on both macOS and Windows. The exact GitHub run is the authoritative platform evidence; its artifacts include screenshots/results. Windows passed the complete job after the PDF path/PATH-fixture fixes in [run 43190897443](https://github.com/PUFFERFISHTNT/loomnote/actions/runs/43190897443). The old macos-14 runner was cancelled before any steps; the matrix now uses macos-latest. A local macOS result alone does not establish hosted macOS CI.
 
 A clean-source installation check must use the committed lockfile and public fixtures, without ignored local settings or lecture material. Record its outcome here after execution.
 

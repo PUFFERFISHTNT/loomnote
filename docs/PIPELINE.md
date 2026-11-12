@@ -18,7 +18,7 @@ PDF notes offer **Slides**, **Slides + note**, **Read**, **Demo** and **Source**
 
 The agent first presents a placement plan: does state change, would a static explanation obscure order, and can the interaction stay within eight offline steps? Each demo has a single root, inline styles/script, a drawn SVG/canvas/table and visible controls. The script is at the end and has no external resources.
 
-Static validation checks the HTML, then a restrictive iframe sandbox/CSP blocks network and host access. The runtime probe checks that something is drawn and a control responds; it does not prove mathematical correctness. A failure is shown with the measured problem so it can be repaired.
+Static validation checks the HTML, then a restrictive iframe sandbox/CSP blocks network and host access. The runtime probe checks that something is drawn and controls are present; it does not prove mathematical correctness. A failure is shown with the measured problem so it can be repaired.
 
 ## 4. Merge a later lecture
 

@@ -133,7 +133,7 @@ export async function verifyDemo(html: string): Promise<DemoVerdict> {
     if (observation.controls === 0) {
       return { ok: false, reason: 'it has nothing to operate — no button, input or step control', observation }
     }
-    return { ok: true, reason: 'rendered and responded', observation }
+    return { ok: true, reason: 'rendered with interactive controls', observation }
   } catch (error) {
     return {
       ok: false,
