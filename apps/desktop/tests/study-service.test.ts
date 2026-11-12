@@ -28,9 +28,9 @@ describe('durable study workflows', () => {
       const replacement = workspace.fileFor('note') + '.tmp'
       await writeFile(replacement, 'Replaced')
       await rename(replacement, workspace.fileFor('note'))
-      await expect.poll(() => bodies).toContain('Replaced')
+      await expect.poll(() => bodies, { timeout: 5000 }).toContain('Replaced')
       await workspace.write('note', 'Later edit')
-      await expect.poll(() => bodies).toContain('Later edit')
+      await expect.poll(() => bodies, { timeout: 5000 }).toContain('Later edit')
     } finally { stop() }
   })
   it('preserves an original file named extracted.md separately from extraction', async () => {

@@ -147,14 +147,16 @@ export function createWorkspace(root: string): NoteWorkspace {
           .catch(() => undefined)
       }
       let watcher: fs.FSWatcher | null = null
-      let polling = false
+      let polling: NodeJS.Timeout | undefined
       const poll = (): void => {
         watcher?.close(); watcher = null
         if (polling || disposed) return
-        polling = true
         // Sandboxed hosts and exhausted OS watcher quotas can reject fs.watch.
-        // Polling is slower but preserves the file-backed editing contract.
-        fs.watchFile(file, { persistent: false, interval: 250 }, fire)
+        // Read periodically rather than waiting for a stat baseline: an atomic
+        // replacement before the first stat must still reach the preview.
+        polling = setInterval(fire, 250)
+        polling.unref()
+        fire()
       }
       try {
         // Editors and agent tools may replace note.md atomically; watching its
@@ -165,6 +167,8 @@ export function createWorkspace(root: string): NoteWorkspace {
           timer = setTimeout(fire, WATCH_DEBOUNCE_MS)
         })
         watcher.on('error', poll)
+        // macOS may coalesce an edit made immediately after registration.
+        timer = setTimeout(fire, WATCH_DEBOUNCE_MS)
       } catch {
         poll()
       }
@@ -172,7 +176,7 @@ export function createWorkspace(root: string): NoteWorkspace {
         disposed = true
         if (timer) clearTimeout(timer)
         watcher?.close()
-        if (polling) fs.unwatchFile(file, fire)
+        if (polling) clearInterval(polling)
       }
     },
 
