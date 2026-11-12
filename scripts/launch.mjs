@@ -11,7 +11,14 @@ const runtime = path.join(root, '.runtime')
 const pnpm = path.join(runtime, 'pnpm/node_modules/pnpm/bin/pnpm.cjs')
 const pnpmVersion = JSON.parse(readFileSync(path.join(root, 'package.json'))).packageManager.split('@')[1]
 const node = realpathSync(process.execPath)
-const env = { ...process.env, LOOMNOTE_NODE: node, PATH: `${path.dirname(node)}${path.delimiter}${process.env.PATH ?? ''}` }
+const localBins = path.join(runtime, 'pnpm/node_modules/.bin')
+const inheritedPath = Object.entries(process.env).find(([name]) => name.toLowerCase() === 'path')?.[1] ?? ''
+const env = { ...process.env, LOOMNOTE_NODE: node }
+// pnpm itself is launched with Node, but package scripts call `pnpm` again.
+// Expose its local shims to every child so a fresh PC needs no global tools.
+// Use one PATH key: Windows treats Path/PATH as the same environment variable.
+for (const name of Object.keys(env)) if (name.toLowerCase() === 'path') delete env[name]
+env.PATH = [localBins, path.dirname(node), inheritedPath].filter(Boolean).join(path.delimiter)
 delete env.ELECTRON_RUN_AS_NODE
 for (const name of Object.keys(env)) if (/(?:API_KEY|TOKEN|SECRET|PASSWORD)$/i.test(name)) delete env[name]
 // Node's fetch does not use HTTP(S)_PROXY by default. Honour an explicitly

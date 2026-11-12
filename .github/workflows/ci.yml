@@ -21,6 +21,29 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      # Run before any tool setup. Restrict PATH so runner preinstalls cannot
+      # hide a dependency on global Node/npm/pnpm/Git or the user's shell.
+      - name: Fresh-machine bootstrap (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        env:
+          LOOMNOTE_PORTABLE_NODE: '1'
+          LOOMNOTE_DATA_DIR: ${{ runner.temp }}/loomnote-fresh-bootstrap
+        run: |
+          $env:Path = "$env:SystemRoot\System32;$env:SystemRoot\System32\WindowsPowerShell\v1.0"
+          .\setup.cmd
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          .\start.cmd --smoke
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Fresh-machine bootstrap (macOS)
+        if: runner.os != 'Windows'
+        env:
+          LOOMNOTE_PORTABLE_NODE: '1'
+          LOOMNOTE_DATA_DIR: ${{ runner.temp }}/loomnote-fresh-bootstrap
+        run: |
+          export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+          ./scripts/setup.sh
+          ./start.command --smoke
       - uses: pnpm/action-setup@v4
         # 版本自动读取 package.json 的 packageManager 字段
         with:
