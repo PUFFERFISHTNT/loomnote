@@ -13,11 +13,45 @@ const live = process.argv.includes('--live')
 const output = path.resolve(process.env.LOOMNOTE_ARTIFACTS_DIR ?? path.join(root, 'artifacts', record ? 'recording' : 'desktop'))
 await mkdir(output, { recursive: true })
 const dataDir = process.env.LOOMNOTE_E2E_DATA_DIR ?? await mkdtemp(path.join(os.tmpdir(), 'loomnote-desktop-'))
+const generatedInputs = path.join(dataDir, 'generated-inputs')
+await mkdir(generatedInputs, { recursive: true })
 const primaryCourse = process.env.LOOMNOTE_DEMO_PRIMARY_COURSE ?? 'COMP2119 · Data Structures'
 const secondaryCourse = process.env.LOOMNOTE_DEMO_SECONDARY_COURSE ?? 'ECON1010 · Economics'
-const primaryFile = path.resolve(process.env.LOOMNOTE_DEMO_PRIMARY_FILE ?? path.join(root, 'examples/COMP2119/lecture-01.pdf'))
+const primaryFile = path.resolve(process.env.LOOMNOTE_DEMO_PRIMARY_FILE ?? path.join(generatedInputs, 'lecture.pdf'))
 const secondaryFile = path.resolve(process.env.LOOMNOTE_DEMO_SECONDARY_FILE ?? path.join(root, 'examples/ECON1010/markets.docx'))
 const secondaryPrompt = process.env.LOOMNOTE_DEMO_SECONDARY_PROMPT
+// PDF inputs are generated inside the isolated test directory. A live run can
+// still provide a permitted local course PDF through LOOMNOTE_DEMO_PRIMARY_FILE.
+function makePdf(lines) {
+  const text = lines.map((line, index) => `BT /F1 12 Tf 72 ${720 - index * 18} Td (${line}) Tj ET`).join('\n')
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${Buffer.byteLength(text) + 1} >>\nstream\n${text}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
+  ]
+  let output = '%PDF-1.4\n'
+  const offsets = []
+  objects.forEach((body, index) => {
+    offsets.push(Buffer.byteLength(output))
+    output += `${index + 1} 0 obj\n${body}\nendobj\n`
+  })
+  const xrefStart = Buffer.byteLength(output)
+  output += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`
+  offsets.forEach((offset) => { output += `${String(offset).padStart(10, '0')} 00000 n \n` })
+  output += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`
+  return Buffer.from(output, 'latin1')
+}
+if (process.env.LOOMNOTE_DEMO_PRIMARY_FILE === undefined) {
+  await writeFile(primaryFile, makePdf([
+    'Balanced Trees: maintaining short search paths.',
+    'An AVL tree keeps every balance factor within minus one and one.',
+    'A right rotation preserves the inorder sequence of keys.'
+  ]))
+}
+const generatedTextless = path.join(generatedInputs, 'textless.pdf')
+await writeFile(generatedTextless, makePdf([]))
 const events = [], errors = [], checkpoints = []
 let app, page, video, noteId
 const env = { ...process.env, LOOMNOTE_DATA_DIR: dataDir, LOOMNOTE_LANG: 'en', LOOMNOTE_WEB_ENABLED: 'false' }
@@ -150,7 +184,7 @@ try {
   await page.getByRole('heading', { name: secondaryCourse, exact: true }).waitFor()
   const economics = page.locator('.course-card').filter({ has: page.getByRole('heading', { name: secondaryCourse, exact: true }) })
   await economics.getByRole('button', { name: 'Upload material', exact: true }).click()
-  await pick([secondaryFile, path.join(root, 'examples/textless.pdf')])
+  await pick([secondaryFile, generatedTextless])
   await page.getByText(/no readable text/).waitFor()
   assert.equal((await page.evaluate(() => window.loomnote.listNotes())).filter((n) => n.course === secondaryCourse).length, 1)
   await checkpoint('second-course-import-and-scanned-pdf-refusal')

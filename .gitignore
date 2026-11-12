@@ -27,6 +27,11 @@ config/local.env
 # Private course drafts and submission bundles contain team-only information.
 /course-deliverables/
 /artifacts/
+
+# Course PDFs are personal source material. Automated PDF tests generate their
+# own tiny fixtures in a temporary directory instead of storing lecture files.
+/examples/**/*.pdf
+
 # Legacy local-only recording scripts; supported driver is scripts/desktop-e2e.mjs.
 /scripts/record-demo.sh
 /scripts/harness-smoke.ts

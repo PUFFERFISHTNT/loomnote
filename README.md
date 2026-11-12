@@ -4,6 +4,25 @@ LoomNote is a desktop study workspace for turning course material into editable 
 
 Start by creating a course, import its materials, and ask the study agent to organise them. The original source stays beside the note. Knowledge points such as **AVL balance factor**, **right rotation**, **permutations** and **combinations** become map nodes with definitions, relationships and links back to the source. Select one course or several courses in the map.
 
+![LoomNote workbench](docs/screenshots/dashboard.png)
+
+The repository contains the runnable application, source code, public fixtures, tests, cross-platform setup scripts and development documentation. Private course originals, local credentials, generated recordings and submission reports are intentionally kept out of Git.
+
+## Feature overview
+
+| Area | What the product does | Where to see it |
+|---|---|---|
+| Courses | Create, rename, archive and restore course folders; assign notes and upload several materials at once. | [Complete workflow](#try-the-complete-workflow) |
+| Document ingestion | Extract text from PDF, DOCX, PPTX, XLSX, Markdown, TXT, CSV/TSV, HTML, JSON, TeX and logs; keep the original source beside the extracted text. | [Supported formats](#format-boundaries) |
+| AI note generation | Stream a visible agent run that reads `source/extracted.md`, edits `note.md`, and keeps follow-up requests scoped to the current note. | [Complete workflow](#try-the-complete-workflow) |
+| Source study | Read the generated note, inspect original PDF pages, and use a side-by-side source/note view with page-linked citations. | [Interface examples](#interface-examples) |
+| Interactive explanations | Render `:::demo` blocks in an isolated iframe with CSP, static checks and runtime checks for visible drawing and controls. | [Demo documentation](docs/DEMO.md) |
+| Merge workflow | Preview additions and updates from another lecture, choose changes, and retain both source files after applying. | [Workflow](docs/PIPELINE.md) |
+| Review centre | Reveal self-test answers, rate recall, schedule the next due time, and keep review history through restart. | [Interface examples](#interface-examples) |
+| Knowledge-point maps | Show concrete concepts with definitions, relationships, course filters and source-page provenance; nodes are knowledge points, not files. | [Interface examples](#interface-examples) |
+| Preferences | Save explicit preferences such as `Remember: use inline formulas`, then edit or delete them in Settings. | [Interface examples](#interface-examples) |
+| Platforms | Run the same app and test workflow on macOS and Windows, with JSON storage as a supported fallback when native SQLite is unavailable. | [Requirements and setup](#requirements-and-setup) |
+
 ## What works
 
 - **Course library:** create, rename, archive and restore courses; upload multiple files into a course; move a note between courses; search/filter notes by course.
@@ -51,7 +70,7 @@ The startup scripts load optional `config/local.env`; copy [config/local.env.exa
 
 ## Try the complete workflow
 
-1. Open **Courses**, create `COMP2119`, and choose **Upload material**. Import [examples/COMP2119/lecture-01.pdf](examples/COMP2119/lecture-01.pdf), a three-page synthetic deck that can be redistributed. The original PDF opens immediately; AI generation is a separate, explicit request.
+1. Open **Courses**, create `COMP2119`, and choose **Upload material**. In a public checkout, use the bundled offline sample or provide your own permitted PDF locally; the repository does not publish course PDFs. The original PDF opens immediately; AI generation is a separate, explicit request.
 2. Open its note and ask:
 
    > Organise the material in source/extracted.md into an English study note with formulas, a comparison table and five self-test questions with individual answers and page citations. Include specific knowledge points and their relationships for the course map. Add a short Next/Reset right-rotation demo where it helps explain the change.
@@ -60,17 +79,33 @@ The startup scripts load optional `config/local.env`; copy [config/local.env.exa
 4. Choose **Merge lecture**, select [lecture-02.md](examples/COMP2119/lecture-02.md), review the proposed additions/updates and apply only what you want. Check that the first note remains intact.
 5. Open **Review**, reveal an answer and rate it. Restart the app and verify the saved due times/history.
 6. Open the course's **Knowledge map**. Select a point to inspect its definition, relationships and source notes. Create a second course and use the checkboxes to display both maps.
-7. Import [examples/textless.pdf](examples/textless.pdf) to observe the explicit scanned/textless-PDF refusal. Other members of a batch still import successfully.
+7. To observe the explicit scanned/textless-PDF refusal, select a local scanned PDF. Other members of a batch still import successfully; the automated desktop workflow creates a private textless fixture at runtime.
 
 Without a credential, **Open offline sample** on the workbench exercises the note, demo, review and map paths with a bundled synthetic note. It is not presented as fresh AI output.
 
 ## Interface examples
 
-The screenshots below use the bundled offline sample and public synthetic inputs.
+The screenshots below use the bundled offline sample and synthetic inputs. They cover the user-facing flows in the application; private HKU course screenshots and generated recordings stay local.
 
-| Knowledge points with definitions and sources | Persistent review queue |
+| Workbench | Course material import |
 |---|---|
-| ![Course knowledge points](docs/screenshots/concepts.png) | ![Review queue](docs/screenshots/review.png) |
+| ![LoomNote workbench](docs/screenshots/dashboard.png) | ![Course material import](docs/screenshots/imports.png) |
+
+| Generated note | Agent request and streamed tool activity |
+|---|---|
+| ![Generated study note](docs/screenshots/notes.png) | ![Agent panel](docs/screenshots/chat.png) |
+
+| Original source slides | Side-by-side source and note |
+|---|---|
+| ![Original lecture slides](docs/screenshots/slides.png) | ![Source and note split view](docs/screenshots/split.png) |
+
+| Knowledge-point map | Review centre |
+|---|---|
+| ![Knowledge points with definitions and sources](docs/screenshots/concepts.png) | ![Persistent review queue](docs/screenshots/review.png) |
+
+| Local settings and preferences |
+|---|
+| ![Settings](docs/screenshots/settings.png) |
 
 ## Format boundaries
 
@@ -97,7 +132,7 @@ pnpm test:live        # explicit real model test; uses your configured credentia
 pnpm demo:record     # actual Electron + real model; saves local video/evidence
 ```
 
-The repository includes the test suite, public input fixtures, frozen lockfile and macOS/Windows CI. The desktop test automates the native picker result; extraction, persistence, views and review actions run in the real app. The recording is an automated demonstration and can make external model requests; it uses isolated app data and does not overwrite your study library. See [TESTING](docs/TESTING.md), [DEMO](docs/DEMO.md) and the measured [EVIDENCE](docs/EVIDENCE.md).
+The repository includes the test suite, public input fixtures, frozen lockfile and macOS/Windows CI. The desktop test automates the native picker result; extraction, persistence, views and review actions run in the real app. The recording is an automated demonstration and can make external model requests; it uses isolated app data and does not overwrite your study library. See [TESTING](docs/TESTING.md) and [DEMO](docs/DEMO.md).
 
 ## Local storage and model requests
 
@@ -115,13 +150,12 @@ API keys are stored locally in settings and supplied to the child runtime throug
 | `packages/memory` | Lightweight local memory primitives; no hosted memory dependency |
 | `packages/harness` | Child process/SDK bridge, events, stream replay, agent profile |
 | `apps/desktop` | Electron main/preload/renderer, document import, courses, study UI, persistence |
-| `examples` | Redistributable synthetic inputs and expected outcomes |
+| `examples` | Small redistributable text/Office inputs and expected outcomes; PDF fixtures are generated privately at runtime |
 | `scripts` | Setup/start, live test and actual desktop recording driver |
 
 - [Architecture](docs/ARCHITECTURE.md) — process boundaries, local data and sandbox design.
 - [Workflow](docs/PIPELINE.md) — imports, generation, merging, review and maps.
-- [Testing](docs/TESTING.md), [evidence](docs/EVIDENCE.md), [demo recording](docs/DEMO.md).
-- [Final deliverable checklist](docs/FINAL-CHECKLIST.md) — course criteria and remaining human deliverables.
+- [Testing](docs/TESTING.md) and [demo recording](docs/DEMO.md).
 - [Changelog](CHANGELOG.md).
 
 ## License

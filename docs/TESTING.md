@@ -21,7 +21,7 @@ pnpm test:desktop
 | Renderer helpers | Markdown sanitisation, source links, demo extraction, sandbox bootstrap/bridge |
 | Memory primitives | Chunking, deduplication, recall, folding, rule extraction |
 
-The actual Electron test uses an isolated temporary data directory. It creates a course, imports a public PDF, views its pages, opens the labelled offline sample, reveals/rates cards, reviews/applies a merge, imports DOCX and rejects a textless PDF within the same batch, views concept maps, saves a preference and restarts. It asserts that courses, review history and preferences survive. Only the native picker result is automated; the real parser, DB, IPC and UI handle the workflow.
+The actual Electron test uses an isolated temporary data directory. It creates a course, generates a tiny readable PDF fixture there, views its pages, opens the labelled offline sample, reveals/rates cards, reviews/applies a merge, imports DOCX and rejects a generated textless PDF within the same batch, views concept maps, saves a preference and restarts. It asserts that courses, review history and preferences survive. Only the native picker result is automated; the real parser, DB, IPC and UI handle the workflow. No course PDF is required in the repository.
 
 Results/screenshots are written to `artifacts/desktop/`. A failure writes `failure.png` and `result.json`, and the command exits nonzero. This is a functional test, not a usability study.
 

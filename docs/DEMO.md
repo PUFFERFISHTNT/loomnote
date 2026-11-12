@@ -12,7 +12,7 @@ pnpm build
 pnpm demo:record
 ```
 
-Set up your own model configuration first. The default inputs are the synthetic public examples. The command requests live generation, presses the generated demo's Next control, issues an assessed-exam refusal request, rates reviews, applies a merge, imports a second course and a bad PDF, opens knowledge points and verifies persistence after restart.
+Set up your own model configuration first. The command generates a small local PDF fixture and uses the synthetic Markdown/Office examples; it does not require or publish a course PDF. The command requests live generation, presses the generated demo's Next control, issues an assessed-exam refusal request, rates reviews, applies a merge, imports a second course and a bad PDF, opens knowledge points and verifies persistence after restart.
 
 `artifacts/recording/` contains the first continuous window capture (`loomnote-continuous.webm`), a separate restart capture (`loomnote-restart.webm`), checkpoint screenshots/timings, generated note and `result.json`. A failed run exits nonzero and retains a failure screenshot. Keep failed attempts separate from the completed demo.
 
