@@ -1,0 +1,17 @@
+{
+  "headSha": "8ce0e466a6c6f898c935d4a743122ffece4cf4ed",
+  "conclusion": "success",
+  "url": "https://github.com/PUFFERFISHTNT/loomnote/actions/runs/43192246617",
+  "jobs": [
+    {
+      "name": "build (macos-latest)",
+      "conclusion": "success",
+      "url": "https://github.com/PUFFERFISHTNT/loomnote/actions/runs/43192246617/job/131094218572"
+    },
+    {
+      "name": "build (windows-latest)",
+      "conclusion": "success",
+      "url": "https://github.com/PUFFERFISHTNT/loomnote/actions/runs/43192246617/job/131094218976"
+    }
+  ]
+}

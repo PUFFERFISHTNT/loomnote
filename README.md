@@ -64,6 +64,14 @@ The startup scripts load optional `config/local.env`; copy [config/local.env.exa
 
 Without a credential, **Open offline sample** on the workbench exercises the note, demo, review and map paths with a bundled synthetic note. It is not presented as fresh AI output.
 
+## Interface examples
+
+The screenshots below use the bundled offline sample and public synthetic inputs.
+
+| Knowledge points with definitions and sources | Persistent review queue |
+|---|---|
+| ![Course knowledge points](docs/screenshots/concepts.png) | ![Review queue](docs/screenshots/review.png) |
+
 ## Format boundaries
 
 | Format | Local extraction and boundary |

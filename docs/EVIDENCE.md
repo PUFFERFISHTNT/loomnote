@@ -42,9 +42,9 @@ The private `artifacts/recording-real-courses-v2/` directory retains raw continu
 
 ## Platforms and reproducibility
 
-The workflow in `.github/workflows/ci.yml` runs the actual offline suite and Electron restart workflow on both macOS and Windows. The exact GitHub run is the authoritative platform evidence; its artifacts include screenshots/results. Windows passed the complete job after the PDF path/PATH-fixture fixes in [run 43190897443](https://github.com/PUFFERFISHTNT/loomnote/actions/runs/43190897443). The old macos-14 runner was cancelled before any steps; the matrix now uses macos-latest. A local macOS result alone does not establish hosted macOS CI.
+The workflow in `.github/workflows/ci.yml` runs the actual offline suite and Electron restart workflow on both macOS and Windows. The exact GitHub run is the authoritative platform evidence; its artifacts include screenshots/results. Windows passed the complete job after the PDF path/PATH-fixture fixes in [run 43190897443](https://github.com/PUFFERFISHTNT/loomnote/actions/runs/43190897443). The old macos-14 runner was cancelled before any steps; switching to macos-latest produced a fully successful [Windows + macOS run 43192246617](https://github.com/PUFFERFISHTNT/loomnote/actions/runs/43192246617) for functional commit `8ce0e46`. Safe CI metadata and desktop results are in `docs/evidence/`.
 
-A clean-source installation check must use the committed lockfile and public fixtures, without ignored local settings or lecture material. Record its outcome here after execution.
+A clean-source installation check used a new temporary directory populated only from the Git archive of the committed source, then installed 807 locked packages, explicitly installed Electron, and passed typecheck, all 150 offline tests, build and the 12-checkpoint desktop/restart workflow. No local config, course originals or existing node_modules were copied. The local proxy needed explicit `NODE_USE_ENV_PROXY=1` for Electron download; this is an environment requirement on this machine, not a hidden repository file. The default offline-only install attempt reported a missing cached dependency, so the completed install downloaded public packages normally.
 
 ## Limits of the evidence
 
