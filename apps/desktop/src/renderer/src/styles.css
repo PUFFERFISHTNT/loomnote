@@ -541,7 +541,9 @@ button { font-family: inherit; }
 .study-search, .preferences-editor { width: 100%; padding: 10px 12px; border: 1px solid var(--line2); border-radius: 6px; background: var(--bg-input); color: var(--text); font: inherit; }
 .pane-side .study-search { width: calc(100% - 24px); margin: 0 12px 8px; font-size: 12px; }
 .graph-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; align-items: start; }
-.note-graph { width: 100%; min-height: 420px; }
+.concept-map-scroll { max-height: 74vh; overflow: auto; border-radius: 16px; }
+.note-graph { display: block; width: 100%; min-width: 740px; }
+.note-graph [role="button"]:focus-visible rect { stroke: #356fbc; stroke-width: 3; }
 .graph-details { padding: 20px; }
 .graph-related { display: flex; flex-direction: column; gap: 5px; text-align: left; width: 100%; padding: 12px 0; border: 0; border-bottom: 1px solid var(--line); color: var(--text); background: transparent; cursor: pointer; }
 .graph-related span { color: var(--text3); font-size: 12px; }

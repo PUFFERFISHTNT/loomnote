@@ -190,6 +190,28 @@ try {
       await page.frameLocator('iframe').first().getByRole('button', { name: 'Next item', exact: true }).click()
       await publicShot('demo')
     }
+    if (!gallery) {
+      const original = await page.evaluate((id) => window.loomnote.getNote(id), noteId)
+      const cssDemo = '<div><div id="bar" style="width:40px;height:28px;background:#356fbc"></div><button id="next">Next</button><script>document.getElementById("next").onclick=function(){document.getElementById("bar").style.width="120px"}</script></div>'
+      const setDemo = async (html) => {
+        await page.evaluate(({ id, body }) => window.loomnote.noteWrite(id, body), { id: noteId, body: `# Runtime check\n\n:::demo CSS diagram\n${html}\n:::\n` })
+        await page.getByRole('button', { name: 'Read', exact: true }).click()
+        await page.locator('iframe').first().waitFor()
+      }
+      await setDemo(cssDemo)
+      await page.waitForFunction(() => /visual=[1-9]/.test(document.querySelector('.demo-card')?.textContent ?? ''))
+      assert.equal(await page.locator('.demo-invalid').count(), 0, 'A working CSS diagram must not be rejected as empty.')
+      await page.frameLocator('iframe').first().getByRole('button', { name: 'Next', exact: true }).click()
+      assert.equal(await page.frameLocator('iframe').first().locator('#bar').evaluate((el) => el.style.width), '120px')
+      await setDemo('<div><svg width="100" height="100"></svg><button id="next">Next</button><script>document.getElementById("next").onclick=function(){}</script></div>')
+      await page.locator('.demo-invalid').waitFor()
+      assert.match(await page.locator('.demo-invalid').innerText(), /drawing area is empty/)
+      await setDemo(cssDemo)
+      await page.waitForFunction(() => /visual=[1-9]/.test(document.querySelector('.demo-card')?.textContent ?? ''))
+      assert.equal(await page.locator('.demo-invalid').count(), 0, 'Replacing the demo must clear its previous fault.')
+      await page.evaluate(({ id, body }) => window.loomnote.noteWrite(id, body), { id: noteId, body: original.bodyMd })
+      await checkpoint('css-demo-and-empty-drawing-regression')
+    }
   }
   await open('/review')
   await page.getByRole('button', { name: 'Reveal answer', exact: true }).waitFor()

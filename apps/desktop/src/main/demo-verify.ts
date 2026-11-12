@@ -17,6 +17,7 @@
 
 import type { BrowserWindow } from 'electron'
 import { validateDemoHtml } from '@loomnote/core'
+import { measureDemoDocument } from '../shared/demo-health.js'
 
 /** The same CSP the note's sandbox uses. Kept in step with `render/demo.ts`. */
 const DEMO_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:;"
@@ -25,7 +26,7 @@ const DEMO_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'uns
 export interface DemoObservation {
   /** Controls the demo exposes (buttons, inputs, summaries). */
   controls: number
-  /** Drawn or laid-out content: SVG children, canvas, images, tables. */
+  /** Visible SVG, canvas, image/table content or CSS diagram elements. */
   visual: number
   /** Visible text length, as a proxy for "the script filled in its captions". */
   text: number
@@ -88,11 +89,8 @@ export function disposeDemoRig(): void {
  */
 const MEASURE = `(() => {
   const errs = window.__loomnoteDemoErrors || []
-  const svgKids = Array.from(document.querySelectorAll('svg')).reduce((n, s) => n + s.childElementCount, 0)
-  const visual = svgKids + document.querySelectorAll('canvas, img, table').length
-  const controls = document.querySelectorAll('button,[role=button],input[type=button],input[type=submit],summary').length
-  const text = ((document.body && document.body.innerText) || '').trim().length
-  return JSON.stringify({ controls, visual, text, error: errs.length ? String(errs[0]).slice(0, 200) : null })
+  const observation = (${measureDemoDocument.toString()})()
+  return JSON.stringify({ ...observation, error: errs.length ? String(errs[0]).slice(0, 200) : null })
 })()`
 
 /**

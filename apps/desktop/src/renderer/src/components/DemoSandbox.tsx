@@ -12,6 +12,7 @@ export function DemoSandbox({ html, title, compact }: { html: string; title?: st
   const [frameH, setFrameH] = useState(compact ? 420 : 540)
   /** An error thrown inside the frame, shown instead of a silent blank box. */
   const [fault, setFault] = useState<string | null>(null)
+  const [empty, setEmpty] = useState(false)
   /** The frame's own report on what it managed to build. */
   const [health, setHealth] = useState<string | null>(null)
   useLang()
@@ -19,7 +20,9 @@ export function DemoSandbox({ html, title, compact }: { html: string; title?: st
   useEffect(() => {
     setValid(checkDemo(html))
     setFault(null)
+    setEmpty(false)
     setHealth(null)
+    setLog([])
   }, [html])
 
   // A demo is a program, and static checks cannot tell a working one from a
@@ -61,8 +64,7 @@ export function DemoSandbox({ html, title, compact }: { html: string; title?: st
         }
         if (data.type === 'demo-health') {
           setHealth(data.message ?? '')
-          if (/visual=0\b/.test(data.message ?? '')) setFault(t('demo.error.empty'))
-          else setFault(null)
+          setEmpty(/visual=0\b/.test(data.message ?? ''))
           return
         }
         setLog((l) => [...l.slice(-3), `${data.type}${data.message ? ': ' + data.message : ''}`])
@@ -74,6 +76,14 @@ export function DemoSandbox({ html, title, compact }: { html: string; title?: st
       }
     }
 
+    const onMessage = (event: MessageEvent): void => {
+      if (event.source !== iframe.contentWindow) return
+      if (event.data?.__loomnote === 'hello') attempt()
+      if (event.data?.__loomnote === 'resize' && Number.isFinite(event.data.height)) {
+        setFrameH(Math.max(160, Math.min(1500, event.data.height + 12)))
+      }
+    }
+    window.addEventListener('message', onMessage)
     iframe.addEventListener('load', attempt)
     const interval = setInterval(attempt, 400)
     timers.push(setTimeout(() => clearInterval(interval), 10000))
@@ -84,19 +94,10 @@ export function DemoSandbox({ html, title, compact }: { html: string; title?: st
       clearInterval(interval)
       for (const timer of timers) clearTimeout(timer)
       iframe.removeEventListener('load', attempt)
+      window.removeEventListener('message', onMessage)
       channel?.port1.close()
     }
   }, [html, valid.ok])
-
-  if (fault) {
-    return (
-      <div className="demo-invalid">
-        <h4>⚠ {t('demo.error')}</h4>
-        <p style={{ margin: '4px 0 0', fontSize: 13 }}>{fault}</p>
-        <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--text2)' }}>{t('demo.error.hint')}</p>
-      </div>
-    )
-  }
 
   if (!valid.ok) {
     return (
@@ -120,6 +121,11 @@ export function DemoSandbox({ html, title, compact }: { html: string; title?: st
         <span className="chip ok">✓ {t('demo.sandboxed')}</span>
         <span className="chip gray">{t('demo.external')} = 0</span>
       </div>
+      {(fault || empty) && <div className="demo-invalid" role="alert">
+        <h4>⚠ {t('demo.error')}</h4>
+        <p style={{ margin: '4px 0 0', fontSize: 13 }}>{fault ?? t('demo.error.empty')}</p>
+        <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--text2)' }}>{t('demo.error.hint')}</p>
+      </div>}
       <iframe
         ref={ref}
         className={compact ? 'demo-frame compact' : 'demo-frame'}

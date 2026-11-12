@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { NoteGraph } from '@loomnote/core'
 import { useApp } from '../stores/app.js'
 import { useLang } from '../i18n.js'
+import { conceptEdge, conceptLabel, CONCEPT_HEIGHT, CONCEPT_WIDTH, layoutConceptMap } from '../render/graph-layout.js'
 
 export function Graph() {
   const zh = useLang() === 'zh'
@@ -20,32 +21,7 @@ export function Graph() {
   }, [notes])
   const nodes = graph.nodes.filter((n) => courses.includes(n.course) && `${n.title} ${n.description}`.toLowerCase().includes(query.toLowerCase()))
   const selectedNode = nodes.find((n) => n.id === selected)
-  const positions = useMemo(() => {
-    const points = new Map(nodes.map((n, i) => {
-    const angle = i / Math.max(1, nodes.length) * Math.PI * 2 - Math.PI / 2
-    return [n.id, { x: 360 + Math.cos(angle) * (nodes.length > 1 ? 245 : 0), y: 290 + Math.sin(angle) * (nodes.length > 1 ? 215 : 0) }]
-    }))
-    // Deterministic spring layout; no external graph runtime or network requests.
-    for (let iteration = 0; iteration < 160; iteration++) {
-      const force = new Map(nodes.map((n) => [n.id, { x: 0, y: 0 }]))
-      for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
-        const a = points.get(nodes[i]!.id)!, b = points.get(nodes[j]!.id)!
-        const dx = a.x - b.x, dy = a.y - b.y, d = Math.max(12, Math.hypot(dx, dy))
-        const amount = 3500 / (d * d)
-        force.get(nodes[i]!.id)!.x += dx / d * amount; force.get(nodes[i]!.id)!.y += dy / d * amount
-        force.get(nodes[j]!.id)!.x -= dx / d * amount; force.get(nodes[j]!.id)!.y -= dy / d * amount
-      }
-      for (const edge of graph.edges) {
-        const a = points.get(edge.from), b = points.get(edge.to)
-        if (!a || !b) continue
-        const dx = b.x - a.x, dy = b.y - a.y, d = Math.max(1, Math.hypot(dx, dy)), amount = (d - 130) * .018
-        force.get(edge.from)!.x += dx / d * amount; force.get(edge.from)!.y += dy / d * amount
-        force.get(edge.to)!.x -= dx / d * amount; force.get(edge.to)!.y -= dy / d * amount
-      }
-      for (const [id, p] of points) { const f = force.get(id)!; p.x = Math.max(75, Math.min(645, p.x + f.x + (360 - p.x) * .002)); p.y = Math.max(50, Math.min(510, p.y + f.y + (280 - p.y) * .002)) }
-    }
-    return points
-  }, [nodes, graph.edges])
+  const layout = useMemo(() => layoutConceptMap(nodes, graph.edges), [nodes, graph.edges])
   const related = graph.edges.filter((e) => (e.from === selected || e.to === selected) && nodes.some((n) => n.id === e.from) && nodes.some((n) => n.id === e.to))
   return <div className="view study-view">
     <h1 className="view-title">{zh ? '课程知识点图谱' : 'Course concept maps'}</h1>
@@ -53,14 +29,23 @@ export function Graph() {
     <div className="study-actions" style={{ marginBottom: 16 }}><b>{zh ? '课程文件夹' : 'Course folders'}</b><button className="btn ghost" onClick={() => { setCourses([...graph.courses, '']); setSelected('') }}>{zh ? '显示全部' : 'Show all'}</button><span className="hint">{nodes.length} {zh ? '个节点' : 'nodes'}</span></div>
     <div className="study-actions course-map-filters">{[...graph.courses, ...(graph.nodes.some((n) => !n.course) ? [''] : [])].map((course) => <label key={course}><input type="checkbox" checked={courses.includes(course)} onChange={(e) => { setCourses((previous) => e.target.checked ? [...previous, course] : previous.filter((c) => c !== course)); setSelected('') }} /> 📁 {course || (zh ? '未分类' : 'Unsorted')}</label>)}</div>
     <input className="study-search" aria-label={zh ? '搜索知识点或定义' : 'Search concepts or definitions'} placeholder={zh ? '搜索知识点或定义…' : 'Search concepts or definitions…'} value={query} onChange={(e) => { setQuery(e.target.value); setSelected('') }} />
-    {nodes.length ? <div className="graph-layout"><svg className="note-graph" viewBox="0 0 720 580" role="img" aria-label={zh ? '课程知识点网络' : 'Course knowledge network'}>
-      <defs><marker id="concept-arrow" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text3)" /></marker></defs>
-      {graph.edges.map((e, i) => { const a = positions.get(e.from), b = positions.get(e.to); const active = e.from === selected || e.to === selected; return a && b ? <g key={i}><line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={active ? '#356fbc' : 'var(--line2)'} strokeWidth={active ? '2.5' : '1.5'} markerEnd="url(#concept-arrow)"><title>{e.label}</title></line>{active && <text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - 6} textAnchor="middle" fill="var(--text)" fontSize="11" stroke="var(--bg)" strokeWidth="3" paintOrder="stroke">{e.label}</text>}</g> : null })}
-      {nodes.map((n) => { const p = positions.get(n.id)!; return <g key={n.id} role="button" tabIndex={0} aria-label={n.title} aria-pressed={selected === n.id} onClick={() => setSelected(n.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(n.id) } }} style={{ cursor: 'pointer' }}>
-        <circle cx={p.x} cy={p.y} r={selected === n.id ? 23 : 17} fill={selected === n.id ? '#356fbc' : ['#75ab94', '#94afd2', '#b7a1ce', '#d5af7a'][Math.max(0, graph.courses.indexOf(n.course)) % 4]} />
-        <text x={p.x} y={p.y + 40} textAnchor="middle" fill="var(--text)" fontSize="13">{n.title.length > 24 ? `${n.title.slice(0, 23)}…` : n.title}</text><title>{n.title}</title>
+    {nodes.length ? <div className="graph-layout"><div className="concept-map-scroll" tabIndex={0} aria-label={zh ? '可滚动知识点图谱' : 'Scrollable concept map'}><svg className="note-graph" viewBox={`0 0 ${layout.width} ${layout.height}`} role="img" aria-label={zh ? '课程知识点网络' : 'Course knowledge network'}>
+      <defs><marker id="concept-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--text3)" /></marker></defs>
+      {layout.panels.map((panel) => <g key={panel.course}>
+        <rect x="1" y={panel.y + 1} width={layout.width - 2} height={panel.height - 2} rx="16" fill="var(--bg)" stroke="var(--line)" />
+        <text x="32" y={panel.y + 36} fill="var(--text)" fontWeight="650" fontSize="16">{panel.course || (zh ? '未分类' : 'Unsorted')}</text>
+        <text x={layout.width - 32} y={panel.y + 36} textAnchor="end" fill="var(--text3)" fontSize="12">{panel.count} {zh ? '个知识点' : 'concepts'}</text>
+      </g>)}
+      {graph.edges.map((e, i) => { const a = layout.positions.get(e.from), b = layout.positions.get(e.to); const active = e.from === selected || e.to === selected; return a && b ? <g key={i}>
+        <path d={conceptEdge(a, b)} fill="none" stroke={active ? '#356fbc' : 'var(--line2)'} strokeWidth={active ? '2.5' : '1.5'} markerEnd="url(#concept-arrow)"><title>{e.label}</title></path>
+      </g> : null })}
+      {nodes.map((n) => { const p = layout.positions.get(n.id)!; const active = selected === n.id; const labels = conceptLabel(n.title); return <g key={n.id} role="button" tabIndex={0} aria-label={n.title} aria-pressed={active} onClick={() => setSelected(n.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(n.id) } }} style={{ cursor: 'pointer' }}>
+        <rect x={p.x - CONCEPT_WIDTH / 2} y={p.y - CONCEPT_HEIGHT / 2} width={CONCEPT_WIDTH} height={CONCEPT_HEIGHT} rx="12" fill={active ? '#e8f0fa' : 'var(--bg-side)'} stroke={active ? '#356fbc' : 'var(--line2)'} strokeWidth={active ? 2.5 : 1} />
+        <circle cx={p.x - CONCEPT_WIDTH / 2 + 18} cy={p.y - 23} r="4" fill={['#75ab94', '#94afd2', '#b7a1ce', '#d5af7a'][Math.max(0, graph.courses.indexOf(n.course)) % 4]} />
+        <text x={p.x - CONCEPT_WIDTH / 2 + 31} y={p.y - 19} fill="var(--text3)" fontSize="10">{n.sources[0]?.page ? `p. ${n.sources[0].page}` : (zh ? '知识点' : 'CONCEPT')}{n.sources.length > 1 ? ` · ${n.sources.length} sources` : ''}</text>
+        <text x={p.x - CONCEPT_WIDTH / 2 + 15} y={p.y + (labels.length > 1 ? 5 : 13)} fill="var(--text)" fontSize="12.5" fontWeight="550">{labels.map((line, index) => <tspan key={index} x={p.x - CONCEPT_WIDTH / 2 + 15} dy={index ? 18 : 0}>{line}</tspan>)}</text><title>{n.title}</title>
       </g> })}
-    </svg><aside className="study-card graph-details">
+    </svg></div><aside className="study-card graph-details">
       <h3>{selectedNode?.title ?? (zh ? '选择一个知识点' : 'Choose a knowledge point')}</h3>
       {selectedNode && <><p className="hint">{selectedNode.course}</p><p>{selectedNode.description || (zh ? '此知识点来自笔记标题。整理笔记时让助教补充知识点定义和关系。' : 'Extracted from a concept heading. Ask the study agent to add a definition and relationships when organising the note.')}</p>
         <b>{zh ? '来源笔记' : 'Source notes'}</b>{selectedNode.sources.map((s, i) => <button className="graph-related" key={i} onClick={() => navigate(`/notes/${encodeURIComponent(s.noteId)}${s.page ? `?page=${s.page}` : ''}`)}><b>{s.noteTitle}</b><span>{s.heading}{s.page ? ` · p. ${s.page}` : ''} ↗</span></button>)}</>}

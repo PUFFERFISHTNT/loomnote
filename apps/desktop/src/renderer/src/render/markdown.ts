@@ -55,6 +55,31 @@ export function createMarkdownIt(): MarkdownIt {
     }
   })
 
+  // TeX must survive Markdown escapes/emphasis unchanged: otherwise \{ loses
+  // its slash, and a displayed set silently becomes a different formula.
+  md.inline.ruler.before('escape', 'loom-math', (state: any, silent: boolean) => {
+    const start = state.pos
+    if (state.src[start] !== '$') return false
+    const delimiter = state.src[start + 1] === '$' ? '$$' : '$'
+    if (delimiter === '$' && /\s/.test(state.src[start + 1] ?? ' ')) return false
+    let end = start + delimiter.length
+    while ((end = state.src.indexOf(delimiter, end)) >= 0) {
+      let slashes = 0
+      for (let i = end - 1; i >= 0 && state.src[i] === '\\'; i--) slashes++
+      if (slashes % 2) { end += delimiter.length; continue }
+      break
+    }
+    if (end < 0 || end === start + delimiter.length ||
+      (delimiter === '$' && (/\s/.test(state.src[end - 1]) || /\d/.test(state.src[end + 1] ?? '')))) return false
+    if (!silent) {
+      const token = state.push('loom_math', '', 0)
+      token.content = state.src.slice(start, end + delimiter.length)
+    }
+    state.pos = end + delimiter.length
+    return true
+  })
+  md.renderer.rules.loom_math = (tokens, index) => `<span class="loom-math">${escapeHtml(tokens[index]!.content)}</span>`
+
   // [[双链]] → 可点链接（Obsidian 风格）
   md.inline.ruler.before('text', 'wikilink', (state: any, silent: any) => {
     const src = state.src

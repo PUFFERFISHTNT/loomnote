@@ -49,4 +49,14 @@ describe('renderMarkdown (03 §6 正文模式)', () => {
     expect(html).toContain('f[i][j]')
     expect(html).toContain('hljs')
   })
+
+  it('preserves TeX set braces, spacing, subscripts and line breaks for KaTeX', () => {
+    const formula = String.raw`$\mathrm{bf}(x)\in\{-1,0,1\}$`
+    const { html } = renderMarkdown(`${formula}\n\n$$\nN(h)=1+N(h-1)+N(h-2),\\quad N(0)=1\\;\n$$`)
+    expect(html).toContain(formula)
+    expect(html).toContain('\\quad')
+    expect(html).toContain('\\;')
+    expect(html).not.toContain('<em>')
+    expect(renderMarkdown('Cost $5 and $8. Escaped \\$x\\$. ` $x$ `').html).not.toContain('class="loom-math"')
+  })
 })
