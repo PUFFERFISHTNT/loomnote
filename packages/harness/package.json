@@ -2,6 +2,7 @@
   "name": "@loomnote/harness",
   "version": "0.2.0",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "description": "DeepSeek Harness agent runtime bridge: process supervision, JSON-RPC session protocol, and event normalisation for LoomNote",
   "main": "./src/index.ts",

@@ -171,4 +171,4 @@ The study workflow is customised around course ownership, lecture-page provenanc
 
 ## License
 
-UNLICENSED — all rights reserved. This is a public source repository for a course/product project; see [LICENSE](LICENSE). Course/team planning material is kept outside the public tree.
+MIT — see [LICENSE](LICENSE). Third-party dependencies retain their own licenses.
