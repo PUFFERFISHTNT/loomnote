@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import path from 'node:path'
 import { MIN_NODE_MAJOR, NodeRuntimeNotFoundError, nodeCandidates, parseProbeOutput, probeNode, resolveNodeRuntime } from '../src/node-runtime.js'
 
 describe('reading a runtime probe', () => {
@@ -31,10 +32,10 @@ describe('choosing candidates', () => {
   })
 
   it('drops an Electron execPath and searches PATH instead', () => {
-    const candidates = nodeCandidates({ env: { PATH: '/a/bin:/b/bin' }, execPath: '/Applications/App.app/Contents/MacOS/App', execIsElectron: true })
+    const candidates = nodeCandidates({ env: { PATH: ['/a/bin', '/b/bin'].join(path.delimiter) }, execPath: '/Applications/App.app/Contents/MacOS/App', execIsElectron: true })
     expect(candidates).not.toContain('/Applications/App.app/Contents/MacOS/App')
-    expect(candidates.some((c) => c.startsWith('/a/bin'))).toBe(true)
-    expect(candidates.some((c) => c.startsWith('/b/bin'))).toBe(true)
+    expect(candidates).toContain(path.join('/a/bin', process.platform === 'win32' ? 'node.exe' : 'node'))
+    expect(candidates).toContain(path.join('/b/bin', process.platform === 'win32' ? 'node.exe' : 'node'))
   })
 })
 

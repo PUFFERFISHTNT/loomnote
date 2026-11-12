@@ -15,7 +15,7 @@
  * @module
  */
 
-import { BrowserWindow } from 'electron'
+import type { BrowserWindow } from 'electron'
 import { validateDemoHtml } from '@loomnote/core'
 
 /** The same CSP the note's sandbox uses. Kept in step with `render/demo.ts`. */
@@ -52,8 +52,10 @@ const SETTLE_MS = 2600
  */
 let rig: BrowserWindow | null = null
 
-function getRig(): BrowserWindow {
+async function getRig(): Promise<BrowserWindow> {
   if (rig && !rig.isDestroyed()) return rig
+  // Pure extraction tests must not load/download Electron's native binary.
+  const { BrowserWindow } = await import('electron')
   rig = new BrowserWindow({
     show: false,
     width: 640,
@@ -109,7 +111,7 @@ export async function verifyDemo(html: string): Promise<DemoVerdict> {
     }
   }
 
-  const win = getRig()
+  const win = await getRig()
   try {
     await win.loadURL(
       `data:text/html;charset=utf-8,${encodeURIComponent(

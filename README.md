@@ -40,6 +40,7 @@ Manual setup and development:
 
 ```bash
 pnpm install --frozen-lockfile
+pnpm setup:electron
 pnpm typecheck
 pnpm test
 pnpm build

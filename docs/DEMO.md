@@ -6,6 +6,7 @@ The recording driver operates the built Electron app through Playwright. It does
 
 ```bash
 pnpm install --frozen-lockfile
+pnpm setup:electron
 pnpm exec playwright install ffmpeg
 pnpm build
 pnpm demo:record

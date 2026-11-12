@@ -32,6 +32,8 @@ jobs:
           cache: pnpm
       - name: Install (frozen lockfile)
         run: pnpm install --frozen-lockfile
+      - name: Install Electron binary
+        run: pnpm setup:electron
       - name: Typecheck
         run: pnpm -r typecheck
       - name: Offline tests

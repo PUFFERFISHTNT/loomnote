@@ -80,7 +80,8 @@ function getStandardFontUrl(): string {
     pdfjsDir = path.dirname(req.resolve('pdfjs-dist/package.json'))
   }
   // The Node pdfjs factory reads this with fs, so it needs a native path.
-  return path.join(pdfjsDir, 'standard_fonts') + path.sep
+  // pdfjs validates a URL-style trailing slash even for its Node fs factory.
+  return path.join(pdfjsDir, 'standard_fonts').replace(/\\/g, '/') + '/'
 }
 
 /** pdfjs-dist legacy 文本提取（主进程 Node 环境，纯文本无需 canvas）。 */
