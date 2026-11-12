@@ -29,9 +29,8 @@ config/local.env
 /course-deliverables/
 /artifacts/
 
-# Course PDFs are personal source material. Automated PDF tests generate their
-# own tiny fixtures in a temporary directory instead of storing lecture files.
-/examples/**/*.pdf
+# Course/example files stay local. Tests generate their own temporary inputs.
+/examples/
 
 # Legacy local-only recording scripts; supported driver is scripts/desktop-e2e.mjs.
 /scripts/record-demo.sh

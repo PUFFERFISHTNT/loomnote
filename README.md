@@ -6,7 +6,7 @@ Start by creating a course, import its materials, and ask the study agent to org
 
 ![LoomNote workbench](docs/screenshots/dashboard.png)
 
-The repository contains the runnable application, source code, public fixtures, tests, cross-platform setup scripts and development documentation. Private course originals, local credentials, generated recordings and submission reports are intentionally kept out of Git.
+The repository contains the runnable application, source code, tests, cross-platform setup scripts and development documentation. Private course originals, local credentials, generated recordings and submission reports are intentionally kept out of Git.
 
 ## Feature overview
 
@@ -53,6 +53,8 @@ Once the window opens, choose **Open offline sample** to try notes, an interacti
 
 Optional local configuration belongs in the ignored `config/local.env`; [config/local.env.example](config/local.env.example) contains the supported fields. Credentials are loaded only for the application after dependency installation and build complete. No key is included in this repository.
 
+If your network requires a proxy, configure `HTTPS_PROXY` / `HTTP_PROXY` before setup. Dependency and Electron downloads honour those variables; the launcher does not add a proxy to your model configuration. Retry the same launcher after a failed download.
+
 ### Developer setup
 
 Install plain Node.js 24+ and pnpm 10.34.5, then:
@@ -76,7 +78,7 @@ The lockfile pins the dependency tree and `packageManager` pins pnpm. The Window
    > Organise the material in source/extracted.md into an English study note with formulas, a comparison table and five self-test questions with individual answers and page citations. Include specific knowledge points and their relationships for the course map. Add a short Next/Reset right-rotation demo where it helps explain the change.
 
 3. Check **Read**, **Slides + note**, **Demo** and **Source**. Compare the citations and mathematics against the source. The formula and demo checks cannot establish academic correctness.
-4. Choose **Merge lecture**, select [lecture-02.md](examples/COMP2119/lecture-02.md), review the proposed additions/updates and apply only what you want. Check that the first note remains intact.
+4. Choose **Merge lecture**, select another permitted local lecture or Markdown file, review the proposed additions/updates and apply only what you want. Check that the first note remains intact.
 5. Open **Review**, reveal an answer and rate it. Restart the app and verify the saved due times/history.
 6. Open the course's **Knowledge map**. Select a point to inspect its definition, relationships and source notes. Create a second course and use the checkboxes to display both maps.
 7. To observe the explicit scanned/textless-PDF refusal, select a local scanned PDF. Other members of a batch still import successfully; the automated desktop workflow creates a private textless fixture at runtime.
@@ -136,7 +138,7 @@ pnpm test:live        # explicit real model test; uses your configured credentia
 pnpm demo:record     # actual Electron + real model; saves local video/evidence
 ```
 
-The repository includes the test suite, generated PDF fixtures, public text/Office inputs, frozen lockfile and macOS/Windows CI. The desktop test automates the native picker result; extraction, persistence, views and review actions run in the real app. The recording is an automated demonstration and can make external model requests; it uses isolated app data and does not overwrite your study library. See [TESTING](docs/TESTING.md) and [DEMO](docs/DEMO.md).
+The repository includes the test suite, frozen lockfile and macOS/Windows CI. Tests generate small PDF, text and Office inputs in temporary directories. The desktop test automates the native picker result; extraction, persistence, views and review actions run in the real app. The recording is an automated demonstration and can make external model requests; it uses isolated app data and does not overwrite your study library. See [TESTING](docs/TESTING.md) and [DEMO](docs/DEMO.md).
 
 ## Local storage and model requests
 
@@ -160,8 +162,7 @@ The study workflow is customised around course ownership, lecture-page provenanc
 | `packages/memory` | Lightweight local memory primitives; no hosted memory dependency |
 | `packages/harness` | Child process/SDK bridge, events, stream replay, agent profile |
 | `apps/desktop` | Electron main/preload/renderer, document import, courses, study UI, persistence |
-| `examples` | Small redistributable text/Office inputs and expected outcomes; PDF fixtures are generated privately at runtime |
-| `scripts` | Setup/start, live test and actual desktop recording driver |
+| `scripts` | Setup/start, live test and actual desktop recording driver; test inputs are generated in temporary directories |
 
 - [Architecture](docs/ARCHITECTURE.md) — process boundaries, local data and sandbox design.
 - [Workflow](docs/PIPELINE.md) — imports, generation, merging, review and maps.

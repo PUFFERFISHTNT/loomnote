@@ -6,8 +6,7 @@ on:
     branches: [main]
   pull_request:
 
-# 双端矩阵：macOS + Windows。国内镜像（.npmrc）仅用于本机开发；
-# GitHub runner 上必须用官方源，避免国外节点访问 npmmirror 抖动。
+# Exercise the same setup and launch entry points used by Windows/macOS users.
 env:
   NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
   ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
@@ -50,8 +49,14 @@ jobs:
         run: . ./scripts/runtime.ps1; & $LoomNoteRuntimeNode --version
         env:
           LOOMNOTE_PORTABLE_NODE: '1'
-      - name: One-click launch smoke
-        run: node scripts/launch.mjs --smoke
+      - name: One-click launch smoke (macOS)
+        if: runner.os != 'Windows'
+        run: ./start.command --smoke
+        env:
+          LOOMNOTE_DATA_DIR: ${{ runner.temp }}/loomnote-launch-smoke
+      - name: One-click launch smoke (Windows)
+        if: runner.os == 'Windows'
+        run: .\start.cmd --smoke
         env:
           LOOMNOTE_DATA_DIR: ${{ runner.temp }}/loomnote-launch-smoke
       - name: Typecheck

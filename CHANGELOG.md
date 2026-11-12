@@ -11,16 +11,18 @@ All notable changes to LoomNote (dev-test version) are recorded here.
 - Persistent review cards, individual answer reveal, source-page return, self-ratings and transparent interval scheduling.
 - Reviewable selected-section merging, stale-note/source protection and multiple retained lecture sources.
 - Editable persistent preferences, model connection checks and an offline sample.
-- Versioned automated tests, public synthetic fixtures, macOS/Windows CI and cross-platform Playwright Electron testing/recording.
+- Versioned automated tests, runtime-generated synthetic inputs, macOS/Windows CI and cross-platform Playwright Electron testing/recording.
 - Windows setup/start command wrappers and a safe local configuration example.
+- Automatic local Node.js/pnpm setup, checksummed portable Node downloads, reusable builds and real launcher smoke checks on both platforms.
 
 ### Fixed
 - Source discovery accidentally choosing generated files, source filename collisions, atomic note replacement notifications and failed native-watcher fallback.
 - Competing agent/editor writes, session-start races, per-note runtime overlay races and Stop persistence order.
 - Unsafe rendered HTML, JSON persistence error swallowing and PDF viewer lifecycle handling.
+- Electron setup downloads now honour explicitly configured HTTP(S) proxies.
 
 ### Documentation
-- Reproducible setup/run/test/recording instructions, accurate model-data flow and local key-storage disclosure, and a course deliverable checklist.
+- Reproducible setup/run/test/recording instructions, accurate model-data flow, local key-storage disclosure and a complete gallery using synthetic inputs.
 
 ## Earlier development (September–October 2026)
 

@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const appRequire = createRequire(path.join(root, 'apps/desktop/package.json'))
+const { strToU8, zipSync } = appRequire('fflate')
 const record = process.argv.includes('--record')
 const live = process.argv.includes('--live')
 const gallery = process.argv.includes('--screenshots')
@@ -20,10 +21,20 @@ await mkdir(generatedInputs, { recursive: true })
 const primaryCourse = process.env.LOOMNOTE_DEMO_PRIMARY_COURSE ?? 'COMP2119 · Data Structures'
 const secondaryCourse = process.env.LOOMNOTE_DEMO_SECONDARY_COURSE ?? 'ECON1010 · Economics'
 const primaryFile = path.resolve(process.env.LOOMNOTE_DEMO_PRIMARY_FILE ?? path.join(generatedInputs, 'lecture.pdf'))
-const secondaryFile = path.resolve(process.env.LOOMNOTE_DEMO_SECONDARY_FILE ?? path.join(root, 'examples/ECON1010/markets.docx'))
+const secondaryFile = path.resolve(process.env.LOOMNOTE_DEMO_SECONDARY_FILE ?? path.join(generatedInputs, 'markets.docx'))
 const secondaryPrompt = process.env.LOOMNOTE_DEMO_SECONDARY_PROMPT
-// PDF inputs are generated inside the isolated test directory. A live run can
-// still provide a permitted local course PDF through LOOMNOTE_DEMO_PRIMARY_FILE.
+// All workflow inputs are generated inside the isolated test directory. A live
+// run can still provide permitted local material through environment variables.
+if (process.env.LOOMNOTE_DEMO_SECONDARY_FILE === undefined) {
+  const files = {
+    '[Content_Types].xml': '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
+    '_rels/.rels': '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
+    'word/document.xml': '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Markets and prices</w:t></w:r></w:p><w:p><w:r><w:t>Demand describes quantities buyers choose at each price.</w:t></w:r></w:p><w:p><w:r><w:t>Supply describes quantities sellers offer at each price.</w:t></w:r></w:p><w:p><w:r><w:t>Equilibrium occurs where supply equals demand.</w:t></w:r></w:p></w:body></w:document>'
+  }
+  await writeFile(secondaryFile, zipSync(Object.fromEntries(Object.entries(files).map(([name, text]) => [name, strToU8(text)]))))
+}
+const mergeFile = path.join(generatedInputs, 'lecture-02.md')
+await writeFile(mergeFile, '# Lecture 2: Deletion\n\n## Deletion\nRemove the key, then restore AVL balance on the search path.\n\n## Complexity\nBalanced search, insertion and deletion take O(log n) time.\n\n[[Balanced search trees]]\n')
 function makePdf(lines) {
   const text = lines.map((line, index) => `BT /F1 12 Tf 72 ${720 - index * 18} Td (${line}) Tj ET`).join('\n')
   const objects = [
@@ -194,7 +205,7 @@ try {
   await publicShot('review')
   await open(`/notes/${noteId}`)
   await page.getByRole('button', { name: 'Merge lecture', exact: true }).waitFor()
-  await pick([path.join(root, 'examples/COMP2119/lecture-02.md')], 'Merge lecture')
+  await pick([mergeFile], 'Merge lecture')
   await page.getByRole('dialog').waitFor()
   await checkpoint('merge-proposal')
   await publicShot('merge')

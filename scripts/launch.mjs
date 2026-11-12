@@ -14,11 +14,17 @@ const node = realpathSync(process.execPath)
 const env = { ...process.env, LOOMNOTE_NODE: node, PATH: `${path.dirname(node)}${path.delimiter}${process.env.PATH ?? ''}` }
 delete env.ELECTRON_RUN_AS_NODE
 for (const name of Object.keys(env)) if (/(?:API_KEY|TOKEN|SECRET|PASSWORD)$/i.test(name)) delete env[name]
+// Node's fetch does not use HTTP(S)_PROXY by default. Honour an explicitly
+// configured download proxy for setup without changing the app's networking.
+const installEnv = { ...env }
+if (['HTTPS_PROXY', 'HTTP_PROXY', 'https_proxy', 'http_proxy'].some((name) => installEnv[name])) {
+  installEnv.NODE_USE_ENV_PROXY ??= '1'
+}
 const main = path.join(root, 'apps/desktop/out/main/index.js')
 const electron = path.join(root, 'apps/desktop/node_modules/electron/dist', process.platform === 'win32' ? 'electron.exe' : process.platform === 'darwin' ? 'Electron.app/Contents/MacOS/Electron' : 'electron')
 const stateFile = path.join(runtime, 'setup-state.json')
 
-async function run(binary, args, childEnv = env) {
+async function run(binary, args, childEnv = installEnv) {
   await new Promise((resolve, reject) => {
     const child = spawn(binary, args, { cwd: root, env: childEnv, stdio: 'inherit' })
     child.once('error', reject)
@@ -69,7 +75,7 @@ try {
   if (process.argv.includes('--setup') || current !== saved || !existsSync(main) || !existsSync(electron)) {
     await ensurePnpm()
     console.log('Installing the locked application dependencies...')
-    env.CI = 'true'
+    installEnv.CI = 'true'
     await run(node, [pnpm, 'install', '--frozen-lockfile'])
     await run(node, [pnpm, 'setup:electron'])
     await run(node, [pnpm, 'build'])
