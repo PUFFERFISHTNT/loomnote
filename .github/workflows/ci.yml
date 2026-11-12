@@ -29,6 +29,9 @@ jobs:
         env:
           LOOMNOTE_PORTABLE_NODE: '1'
           LOOMNOTE_DATA_DIR: ${{ runner.temp }}/loomnote-fresh-bootstrap
+          NODE_GYP_FORCE_PYTHON: ${{ runner.temp }}/loomnote-no-python
+          CC: loomnote-no-c-compiler
+          CXX: loomnote-no-cxx-compiler
         run: |
           $env:Path = "$env:SystemRoot\System32;$env:SystemRoot\System32\WindowsPowerShell\v1.0"
           .\setup.cmd
@@ -40,6 +43,9 @@ jobs:
         env:
           LOOMNOTE_PORTABLE_NODE: '1'
           LOOMNOTE_DATA_DIR: ${{ runner.temp }}/loomnote-fresh-bootstrap
+          NODE_GYP_FORCE_PYTHON: ${{ runner.temp }}/loomnote-no-python
+          CC: loomnote-no-c-compiler
+          CXX: loomnote-no-cxx-compiler
         run: |
           export PATH=/usr/bin:/bin:/usr/sbin:/sbin
           ./scripts/setup.sh
